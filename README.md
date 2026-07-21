@@ -13,8 +13,10 @@ The method used by this tool can essentially defeat any system reboot‑restore 
 ![](images/icon.png)  
 ![](images/ui.png)
 
+## Build Environment
+Visual Studio 2026 + Windows 11 SDK 10.0.28000.2114 + WDK 28000.1761
 
-## TO-DO list 
+## TO-DO list （No idea when I'll get these TODOs done – I'm pretty lazy, to be honest :）
 1. Improve support for Windows 10 32‑bit.
 2. Add support for Windows 7 (and even Windows XP).
 3. Support Reboot Restore RX.
