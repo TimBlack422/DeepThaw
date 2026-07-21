@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="DeepThaw/DeepThaw.vcxproj" />
+  <Project Path="DeepThaw_Kernel/DeepThaw_Kernel.vcxproj">
+    <Platform Solution="Release|x86" Project="x64" />
+    <Deploy />
+  </Project>
+</Solution>

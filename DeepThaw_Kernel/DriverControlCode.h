@@ -1,0 +1,4 @@
+#pragma once
+#include <devioctl.h>
+
+#define IOCTL_DISABLE_DEEPFRZ CTL_CODE(FILE_DEVICE_UNKNOWN,0x1,METHOD_BUFFERED,FILE_ANY_ACCESS)
