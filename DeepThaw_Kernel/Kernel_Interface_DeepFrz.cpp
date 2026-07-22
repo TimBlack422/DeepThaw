@@ -2,7 +2,9 @@
 #include "Tools.h"
 
 extern PDEVICE_OBJECT pMainDevobj;
-extern KEVENT		  event_BlockIO;
+
+extern PEPROCESS	  Proceess_UnBlockIO;
+extern KEVENT		  event_BlockIO[2];
 
 ///////////////////////////////////////////////////////////////////////////
 // ///////////////////////////////////////////////////////////////////////
@@ -14,8 +16,8 @@ PDRIVER_DISPATCH OriginalFarSpaceDispatchers[IRP_MJ_MAXIMUM_FUNCTION]{ 0 };
 
 LowerDeviceList * DeepFrzFarSpace_LowerDeviceList = nullptr;
 
-NTSTATUS MyHookDispatch_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp);
-NTSTATUS MyHookDispatch_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp);
+NTSTATUS MyHookDispatcher_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp);
+NTSTATUS MyHookDispatcher_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp);
 
 /////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -54,7 +56,7 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
 		ZwUnloadDriver(&driverServiceName);
 	}
 	
-
+	
 	// 驱动DeepFrz挂钩的几个设备classes DiskDrive {4D36E967-E325-11CE-BFC1-08002BE10318}
 	// Volume {71a27cdd-812a-11d0-bec7-08002be2092f}
 	// Keyboard {4D36E96B-E325-11CE-BFC1-08002BE10318}
@@ -102,13 +104,18 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
 		ObDereferenceObject(pDrvobj);
 	}
 
-	//IO封锁
-	KeClearEvent(&event_BlockIO);
+	//IO封锁开始
+	KeClearEvent(&event_BlockIO[0]);
+	//针对进程的IO封锁开始
+	Proceess_UnBlockIO = PsGetCurrentProcess();
+	KeClearEvent(&event_BlockIO[1]);
+	
+
 	for (auto i = IRP_MJ_CREATE; i < IRP_MJ_MAXIMUM_FUNCTION; i++)
 	{
 		OriginalDeepFrzDispatchers[i]=(PDRIVER_DISPATCH)
 		InterlockedExchange64((LONG64*) & pDeepFrzDrvObj->MajorFunction[i],
-			(LONG64)MyHookDispatch_DeepFrz);
+			(LONG64)MyHookDispatcher_DeepFrz);
 	}
 	//懒得两个合并循环了
 	//这个是FarSpace
@@ -118,11 +125,11 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
 		{
 			OriginalFarSpaceDispatchers[i] = (PDRIVER_DISPATCH)
 				InterlockedExchange64((LONG64*)&pFarSpaceDrvObj->MajorFunction[i],
-					(LONG64)MyHookDispatch_FarSpace);
+					(LONG64)MyHookDispatcher_FarSpace);
 		}
 	}
-	//Io封锁解除
-	KeSetEvent(&event_BlockIO, 1, FALSE);
+	//Io封锁解除。
+	KeSetEvent(&event_BlockIO[0], 1, FALSE);
 
 	//注册表修改
 	LPWSTR registerPath_Classes[] = 
@@ -187,7 +194,7 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrzOnSystemShutdown()
 ///////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////
 
-NTSTATUS MyHookDispatch_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
+NTSTATUS MyHookDispatcher_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 {
 	auto irpStack =
 		IoGetCurrentIrpStackLocation(Irp);
@@ -216,7 +223,7 @@ NTSTATUS MyHookDispatch_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 
 //这两个函数几乎一样的
 
-NTSTATUS MyHookDispatch_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
+NTSTATUS MyHookDispatcher_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 {
 	auto irpStack =
 		IoGetCurrentIrpStackLocation(Irp);

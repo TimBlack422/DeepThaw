@@ -8,8 +8,11 @@
 
 //用来通信的devobj
 PDEVICE_OBJECT pMainDevobj = nullptr;
-//标识是否需要BlockIO
-KEVENT event_BlockIO{ 0 };
+
+//标识BlockIO的成员
+KEVENT		 event_BlockIO[2]{ 0 };
+PEPROCESS	 Proceess_UnBlockIO = nullptr;
+/////
 
 void DriverUnload(PDRIVER_OBJECT pDrvObj);
 
@@ -63,8 +66,9 @@ NTSTATUS __stdcall DriverEntry
 		return status;
 	}
 
-	//初始化一个Event对象为io封锁做好准备
-	KeInitializeEvent(&event_BlockIO, NotificationEvent, TRUE);
+	//初始化Event对象为io封锁做好准备
+	for (auto& event : event_BlockIO)
+		KeInitializeEvent(&event, NotificationEvent, TRUE);
 
 	return STATUS_SUCCESS;
 }
@@ -148,8 +152,19 @@ NTSTATUS IoBlock_Dispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 		return STATUS_SUCCESS;
 	}
 		
-	KeWaitForSingleObject(&event_BlockIO, Executive, KernelMode, FALSE, nullptr);
+	KeWaitForSingleObject(&event_BlockIO[0], Executive, KernelMode, FALSE, nullptr);
 
-	IoSkipCurrentIrpStackLocation(Irp);
-	return IoCallDriver((PDEVICE_OBJECT)pDeviceObject->DeviceExtension, Irp);
+	LARGE_INTEGER timeOut{ 0 };
+	auto status =
+		KeWaitForSingleObject(&event_BlockIO[1], Executive, KernelMode, FALSE, &timeOut);
+	if (status == STATUS_TIMEOUT)
+	{
+		if (!(PsGetCurrentProcess() == Proceess_UnBlockIO || PsGetCurrentProcess() == PsInitialSystemProcess))
+			KeWaitForSingleObject(&event_BlockIO[1], Executive, KernelMode, FALSE, nullptr);
+			
+		IoSkipCurrentIrpStackLocation(Irp);
+		return IoCallDriver((PDEVICE_OBJECT)pDeviceObject->DeviceExtension, Irp);
+	}
+
+
 }
