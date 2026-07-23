@@ -21,3 +21,4 @@ Visual Studio 2026 + Windows 11 SDK 10.0.28000.2114 + WDK 28000.1761
 2. Add support for Windows 7 (and even Windows XP).
 3. Support Reboot Restore RX.
 4. Support Shadow Defender.
+5. Completely and unbreakably harden the stability of programs in complex environments using Intel VT-x and AMD-V technologies.
