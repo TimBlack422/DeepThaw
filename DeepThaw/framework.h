@@ -21,7 +21,7 @@
 
 #include <afxcontrolbars.h>     // MFC 支持功能区和控制条
 
-
+#include <VersionHelpers.h>
 
 
 

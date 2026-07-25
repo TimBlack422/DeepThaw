@@ -3,8 +3,9 @@
 
 extern PDEVICE_OBJECT pMainDevobj;
 
-extern PEPROCESS	  Proceess_UnBlockIO;
 extern KEVENT		  event_BlockIO[2];
+extern "C"
+PEPROCESS			  pProceess_UnBlockIO;
 
 ///////////////////////////////////////////////////////////////////////////
 // ///////////////////////////////////////////////////////////////////////
@@ -107,7 +108,7 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
 	//IO封锁开始
 	KeClearEvent(&event_BlockIO[0]);
 	//针对进程的IO封锁开始
-	Proceess_UnBlockIO = PsGetCurrentProcess();
+	pProceess_UnBlockIO = PsGetCurrentProcess();
 	KeClearEvent(&event_BlockIO[1]);
 	
 
@@ -167,7 +168,7 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
 
 		if (i == 1)
 		RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, registerPath_Classes[i],
-			L"LowerFilters", REG_MULTI_SZ, L"EhStorClass", sizeof(WCHAR) * wcslen(L"EhStorClass") + sizeof(WCHAR) * 2);
+			L"LowerFilters", REG_MULTI_SZ, L"EhStorClass\0", sizeof(WCHAR) * wcslen(L"EhStorClass") + sizeof(WCHAR) * 2);
 	}
 
 	for (auto Path : registerPath_Services)
@@ -214,9 +215,21 @@ NTSTATUS MyHookDispatcher_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 		if (MajorFuncCode == IRP_MJ_WRITE)
 			KdPrint(("IRP_MJ_WRITE "));
 
-		KdPrint(("Filter OK! 1 LowerDevobj: %p\n"),LowerDevObj);
-		IoSkipCurrentIrpStackLocation(Irp);
-		return IoCallDriver(LowerDevObj, Irp);
+		KdPrint(("Filter OK! 1 LowerDevobj: %p\n",LowerDevObj));
+
+		if (MajorFuncCode == IRP_MJ_FLUSH_BUFFERS || MajorFuncCode == IRP_MJ_WRITE)
+		{
+			IoSkipCurrentIrpStackLocation(Irp);
+			return IoCallDriver(LowerDevObj, Irp);
+		}
+		else
+		{	
+			Irp->IoStatus.Status = STATUS_SUCCESS;
+			Irp->IoStatus.Information = 0;
+
+			IoCompleteRequest(Irp, IO_NO_INCREMENT);
+			return STATUS_SUCCESS;
+		}
 	}
 	
 }
@@ -240,7 +253,7 @@ NTSTATUS MyHookDispatcher_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 		if (LowerDevObj == nullptr)
 			return OriginalFarSpaceDispatchers[irpStack->MajorFunction](pDeviceObject, Irp);
 		
-		KdPrint(("Filter OK! 2 LowerDevobj: %p\n"),LowerDevObj);
+		KdPrint(("Filter OK! 2 LowerDevobj: %p\n", LowerDevObj));
 		IoSkipCurrentIrpStackLocation(Irp);
 		return IoCallDriver(LowerDevObj, Irp);
 	}

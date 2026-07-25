@@ -68,10 +68,10 @@ NTSTATUS LookupLowerDevobjByLowerDeviceList(PDEVICE_OBJECT TargetDevObj, LowerDe
 {
 	for (auto i = DeviceList; i; i = i->NextItem)
 	{
-		KdPrint(("LookupLowerDevobjByLowerDeviceList List: %p item:%p TargetDevobj:%p i->TargetDevobj:%p LowerDevobj:%p \n", DeviceList,i,TargetDevObj, i->TargetDevObj, i->LowerDevObj));
+		//KdPrint(("LookupLowerDevobjByLowerDeviceList List: %p item:%p TargetDevobj:%p i->TargetDevobj:%p LowerDevobj:%p \n", DeviceList,i,TargetDevObj, i->TargetDevObj, i->LowerDevObj));
 		if (i->TargetDevObj == TargetDevObj)
 		{
-			KdPrint(("Found! LookupLowerDevobjByLowerDeviceList TargetDevobj:%p i->TargetDevobj:%p LowerDevobj:%p \n",TargetDevObj,i->TargetDevObj,i->LowerDevObj));
+			//KdPrint(("Found! LookupLowerDevobjByLowerDeviceList TargetDevobj:%p i->TargetDevobj:%p LowerDevobj:%p \n",TargetDevObj,i->TargetDevObj,i->LowerDevObj));
 			*output_LowerDevObj = i->LowerDevObj;
 			return STATUS_SUCCESS;
 		}

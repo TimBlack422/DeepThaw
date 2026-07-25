@@ -1,17 +1,30 @@
+#include <ntifs.h>
 #include <ntddk.h>
 
 //Interface的头文件以后还会拓展的
 #include "Kernel_Interface_DeepFrz.h"
 
-
 #include "DriverControlCode.h"
+
+typedef enum _FIRMWARE_REENTRY
+{
+	HalHaltRoutine,
+	HalPowerDownRoutine,
+	HalRestartRoutine,
+	HalRebootRoutine,
+	HalInteractiveModeRoutine,
+	HalMaximumRoutine
+}FIRMWARE_REENTRY, * PFIRMWARE_REENTRY;
+extern "C"
+NTKERNELAPI void HalReturnToFirmware(IN FIRMWARE_REENTRY FirmwareReentry);
 
 //用来通信的devobj
 PDEVICE_OBJECT pMainDevobj = nullptr;
 
 //标识BlockIO的成员
 KEVENT		 event_BlockIO[2]{ 0 };
-PEPROCESS	 Proceess_UnBlockIO = nullptr;
+extern "C"
+PEPROCESS	 pProceess_UnBlockIO = nullptr;
 /////
 
 void DriverUnload(PDRIVER_OBJECT pDrvObj);
@@ -114,6 +127,9 @@ NTSTATUS DeviceIoControlDispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 	case IOCTL_DISABLE_DEEPFRZ:
 		status = Kernel_Interface_DeepFrz::DisableDeepFrz(Irp);
 		break;
+	case IOCTL_REBOOT_SYSTEM:
+		HalReturnToFirmware(HalRebootRoutine);
+		break;
 	default:
 		Irp->IoStatus.Status = STATUS_INVALID_PARAMETER;
 		Irp->IoStatus.Information = 0;
@@ -151,7 +167,7 @@ NTSTATUS IoBlock_Dispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 
 		return STATUS_SUCCESS;
 	}
-		
+	
 	KeWaitForSingleObject(&event_BlockIO[0], Executive, KernelMode, FALSE, nullptr);
 
 	LARGE_INTEGER timeOut{ 0 };
@@ -159,9 +175,9 @@ NTSTATUS IoBlock_Dispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 		KeWaitForSingleObject(&event_BlockIO[1], Executive, KernelMode, FALSE, &timeOut);
 	if (status == STATUS_TIMEOUT)
 	{
-		if (!(PsGetCurrentProcess() == Proceess_UnBlockIO || PsGetCurrentProcess() == PsInitialSystemProcess))
+		if (!(PsGetCurrentProcess() == pProceess_UnBlockIO || PsGetCurrentProcess() == PsInitialSystemProcess))
 			KeWaitForSingleObject(&event_BlockIO[1], Executive, KernelMode, FALSE, nullptr);
-			
+
 		IoSkipCurrentIrpStackLocation(Irp);
 		return IoCallDriver((PDEVICE_OBJECT)pDeviceObject->DeviceExtension, Irp);
 	}

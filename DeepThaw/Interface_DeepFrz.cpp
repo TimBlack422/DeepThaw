@@ -4,6 +4,18 @@
 
 #pragma comment(lib,"Version.lib")
 
+//NtShutdownSystem 函数 定义
+typedef enum _SHUTDOWN_ACTION {
+	ShutdownNoReboot,  // 关机
+	ShutdownReboot,    // 重启
+	ShutdownPowerOff   // 断电
+} SHUTDOWN_ACTION, * PSHUTDOWN_ACTION;
+
+typedef LONG NTSTATUS;
+
+typedef
+NTSTATUS(__stdcall* type_NtShutdownSystem)(SHUTDOWN_ACTION Action);
+
 bool Interface_DeepFrz::getDeepFrzVersion(std::wstring& output_version) 
 {
 	//简单地获取系统所在卷的盘符
@@ -173,9 +185,12 @@ bool Interface_DeepFrz::setDeepFrzStatus(bool Enable = 0)
 			DeviceIoControl(hDeepThaw_Kernel, IOCTL_DISABLE_DEEPFRZ, 0, 0, 0, 0, 0, nullptr);
 		if (!status)
 			return false;
-
 		CloseHandle(hDeepThaw_Kernel);
-		return true;
+
 	}
 
+	type_NtShutdownSystem NtShutdownSystem = nullptr;
+	NtShutdownSystem = (type_NtShutdownSystem)GetProcAddress(GetModuleHandle(L"ntdll.dll"), "NtShutdownSystem");
+
+	NtShutdownSystem(ShutdownReboot);
 }

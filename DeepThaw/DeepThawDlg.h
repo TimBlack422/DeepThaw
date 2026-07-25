@@ -35,6 +35,7 @@ protected:
 
 	afx_msg void OnButtonSetting();		
 	afx_msg void OnButtonDelete();
+	afx_msg BOOL OnQueryEndSession();
 
 	afx_msg void OnPaint();
 	DECLARE_MESSAGE_MAP()

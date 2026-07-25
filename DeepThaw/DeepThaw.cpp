@@ -33,10 +33,15 @@ BOOL CDeepThawApp::InitInstance()
 {
 	CWinApp::InitInstance();
 
-
 	CShellManager *pShellManager = new CShellManager;
-
 	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
+
+	//操作系统版本排除
+	//if (!IsWindows10OrGreater())
+	//{
+	//	AfxMessageBox(L"Please use Windows 10 or a later version of the operating system to run this tool.\n", MB_OK | MB_ICONERROR);
+	//	return FALSE;
+	//}
 
 	//加载驱动
 	LoadDriver();
@@ -128,8 +133,10 @@ createService:					//这是个不好的习惯，大家请不要学习我
 startService:
 	if(!StartService(hService_DeepThawKernel, 0, 0))
 	{
-		AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);
-		ExitProcess(0);
+		if (!StartService(hService_DeepThawKernel, 0, 0)) {			//这里要写两遍
+			AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);
+			ExitProcess(0);
+		}
 	}
 
 	CloseServiceHandle(hSCManager);

@@ -139,6 +139,7 @@
   <ItemGroup>
     <ClInclude Include="DriverControlCode.h" />
     <ClInclude Include="Kernel_Interface_DeepFrz.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Tools.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

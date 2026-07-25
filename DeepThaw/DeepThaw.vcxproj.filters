@@ -22,6 +22,12 @@
     <Filter Include="源文件\DeepFrz">
       <UniqueIdentifier>{80f2d2b5-1575-4956-ab50-88d1acbbd970}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Reboot Restart Rx">
+      <UniqueIdentifier>{2b9d76c2-1b0d-4337-a119-3719c8545635}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Reboot Restart Rx">
+      <UniqueIdentifier>{ef9969a8-1b0f-4d95-bd09-7c3ef5aa4a88}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DeepThaw.h">

@@ -22,6 +22,8 @@ CDeepThawDlg::CDeepThawDlg(CWnd* pParent /*=nullptr*/)
 BEGIN_MESSAGE_MAP(CDeepThawDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_SETTING, OnButtonSetting)
 	ON_BN_CLICKED(IDC_BUTTON_DELETE , OnButtonDelete)
+	ON_WM_QUERYENDSESSION()
+
 	ON_WM_PAINT()
 END_MESSAGE_MAP()
 
@@ -133,17 +135,7 @@ void CDeepThawDlg::OnButtonDelete()
 }
 
 #include "InterFace_DeepFrz.h"
-//NtShutdownSystem 函数 定义
-typedef enum _SHUTDOWN_ACTION {
-	ShutdownNoReboot,  // 关机
-	ShutdownReboot,    // 重启
-	ShutdownPowerOff   // 断电
-} SHUTDOWN_ACTION, * PSHUTDOWN_ACTION;
 
-typedef LONG NTSTATUS;
-
-typedef 
-NTSTATUS(__stdcall * type_NtShutdownSystem)(SHUTDOWN_ACTION Action);
 
 void CDeepThawDlg::OnButtonSetting()
 {
@@ -156,13 +148,15 @@ void CDeepThawDlg::OnButtonSetting()
 
 	Interface_DeepFrz::setDeepFrzStatus(!m_DeepFrzStatus);
 
-	type_NtShutdownSystem NtShutdownSystem = nullptr;
-	NtShutdownSystem = (type_NtShutdownSystem)GetProcAddress(GetModuleHandle(L"ntdll.dll"), "NtShutdownSystem");
-	
-	NtShutdownSystem(ShutdownReboot);
-	
 	ExitProcess(0);
 
+}
+
+BOOL CDeepThawDlg::OnQueryEndSession()
+{
+	EndDialog(0);
+
+	return FALSE;
 }
 
 void CDeepThawDlg::OnPaint()

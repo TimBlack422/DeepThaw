@@ -16,6 +16,9 @@ ObReferenceObjectByName(
 
 extern "C" POBJECT_TYPE* IoDriverObjectType;
 
+extern "C" POBJECT_TYPE ObGetObjectType(IN PVOID Object);
+
+
 NTSTATUS ReferenceDriverObjectByName(LPCWSTR ObjectPath, PDRIVER_OBJECT* pDrvObj);
 
 struct LowerDeviceList
@@ -29,3 +32,5 @@ struct LowerDeviceList
 NTSTATUS FindLowerDevobjByTargetDrvObjAndPDO(PDRIVER_OBJECT TargetDrvobj, PDRIVER_OBJECT drvobj_pdo, LowerDeviceList** item);
 
 NTSTATUS LookupLowerDevobjByLowerDeviceList (PDEVICE_OBJECT TargetDevObj, LowerDeviceList* item,PDEVICE_OBJECT* output_LowerDevObj);
+
+NTSTATUS GetSystemRootAsDosName();
