@@ -21,5 +21,11 @@ Visual Studio 2026 + Windows 11 SDK 10.0.28000.2114 + WDK 28000.1761
 2. Add support for Windows 7 (and even Windows XP).
 3. Support Reboot Restore RX.
 4. Support Shadow Defender.
-5. Thoroughly resolve the utility's stability in complex environments by permitting I/O operations only from the Configuration Manager.
-6. Harden the stability of programs in complex environments using Intel VT-x and AMD-V technologies(If it is necessary).
+5. ~Thoroughly resolve the utility's stability in complex environments by permitting I/O operations only from the Configuration Manager.~
+6. ~Harden the stability of programs in complex environments using Intel VT-x and AMD-V technologies(If it is necessary).~
+
+## Remarks
+### Some current situations
+This tool employs a rather forceful approach that could, under certain circumstances, damage the Windows registry and render the system unbootable (although the risk is minimal). Prior to the release of version 1.4, I recommend exercising caution when using it.
+### My Next Step
+In version 1.4, I will use a completely new method (signature scanning) to disable DeepFreeze and a number of other similar applications. Although this method is version‑limited, it is absolutely stable. The current method will be made available as 'Force Mode' in later versions.

@@ -13,11 +13,10 @@ ObReferenceObjectByName(
 	IN OUT PVOID ParseContext OPTIONAL,
 	OUT PVOID* Object
 );
-
 extern "C" POBJECT_TYPE* IoDriverObjectType;
 
-extern "C" POBJECT_TYPE ObGetObjectType(IN PVOID Object);
 
+extern "C" POBJECT_TYPE ObGetObjectType(IN PVOID Object);
 
 NTSTATUS ReferenceDriverObjectByName(LPCWSTR ObjectPath, PDRIVER_OBJECT* pDrvObj);
 
@@ -33,4 +32,14 @@ NTSTATUS FindLowerDevobjByTargetDrvObjAndPDO(PDRIVER_OBJECT TargetDrvobj, PDRIVE
 
 NTSTATUS LookupLowerDevobjByLowerDeviceList (PDEVICE_OBJECT TargetDevObj, LowerDeviceList* item,PDEVICE_OBJECT* output_LowerDevObj);
 
-NTSTATUS GetSystemRootAsDosName();
+//NtShutdownSystem 函数 定义
+typedef enum _SHUTDOWN_ACTION {
+	ShutdownNoReboot,  // 关机
+	ShutdownReboot,    // 重启
+	ShutdownPowerOff   // 断电
+} SHUTDOWN_ACTION, * PSHUTDOWN_ACTION;
+
+extern "C"
+NTSTATUS __stdcall NtShutdownSystem(SHUTDOWN_ACTION Action);
+
+void	(__stdcall  NtMyRebootSystem)();

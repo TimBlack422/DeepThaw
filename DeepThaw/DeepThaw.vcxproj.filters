@@ -75,4 +75,9 @@
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>
+  <ItemGroup>
+    <Xml Include="DeepThaw.exe.manifest">
+      <Filter>源文件</Filter>
+    </Xml>
+  </ItemGroup>
 </Project>

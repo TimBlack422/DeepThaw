@@ -40,6 +40,9 @@
     <ClCompile Include="DeepThaw_Kernel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FSD_Hook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Tools.h">
@@ -51,8 +54,11 @@
     <ClInclude Include="DriverControlCode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
+    <ClInclude Include="FSD_Hook.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Kernel_Interface_RrRx.h">
+      <Filter>Header Files\Reboot Restore Rx</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

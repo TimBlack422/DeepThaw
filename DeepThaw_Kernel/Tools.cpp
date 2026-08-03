@@ -19,7 +19,7 @@ NTSTATUS FindLowerDevobjByTargetDrvObjAndPDO(PDRIVER_OBJECT TargetDrvobj, PDRIVE
 {
 	LowerDeviceList* list = nullptr;
 	if (!*pList_LowerDevice) {
-		list = (LowerDeviceList*)ExAllocatePool(NonPagedPool, sizeof(LowerDeviceList));
+		list = reinterpret_cast<LowerDeviceList*>(ExAllocatePool(NonPagedPool, sizeof(LowerDeviceList)));
 		if (!list)
 			return STATUS_INTERNAL_ERROR;
 		RtlZeroMemory(list, sizeof(LowerDeviceList));
@@ -50,7 +50,7 @@ NTSTATUS FindLowerDevobjByTargetDrvObjAndPDO(PDRIVER_OBJECT TargetDrvobj, PDRIVE
 
 				list->NextItem = nullptr;
 				if (currectDevobj->AttachedDevice) {
-					list->NextItem = (LowerDeviceList*)ExAllocatePool(NonPagedPool, sizeof(LowerDeviceList));
+					list->NextItem = reinterpret_cast<LowerDeviceList*>(ExAllocatePool(NonPagedPool, sizeof(LowerDeviceList)));
 					list = list->NextItem;
 					if (!list)
 						return STATUS_INTERNAL_ERROR;
@@ -79,4 +79,31 @@ NTSTATUS LookupLowerDevobjByLowerDeviceList(PDEVICE_OBJECT TargetDevObj, LowerDe
 
 	*output_LowerDevObj = nullptr;
 	return STATUS_NOT_FOUND;
+}
+
+static VOID __stdcall Thread_NtShutdownSystem (PVOID StartContext)
+{
+	if(ExGetPreviousMode() == UserMode)
+		NtShutdownSystem(ShutdownReboot);
+
+	PsTerminateSystemThread(0);
+}
+
+void __stdcall  NtMyRebootSystem()
+{
+	HANDLE hThreadHandle{ 0 };
+	OBJECT_ATTRIBUTES ObjectAttributes = { 0 };
+	
+	KIRQL OldIrql = -1;
+	if (KeGetCurrentIrql() != PASSIVE_LEVEL)		//降IQRL
+		KeRaiseIrql(PASSIVE_LEVEL,&OldIrql);
+
+	InitializeObjectAttributes(&ObjectAttributes, nullptr, OBJ_KERNEL_HANDLE, nullptr, nullptr);
+	PsCreateSystemThread(&hThreadHandle, THREAD_ALL_ACCESS, &ObjectAttributes, nullptr, nullptr
+		, Thread_NtShutdownSystem, nullptr);
+
+	if (OldIrql != -1)
+		KeLowerIrql(OldIrql); 
+
+	KeWaitForSingleObject(hThreadHandle, Executive, KernelMode, false, nullptr);
 }

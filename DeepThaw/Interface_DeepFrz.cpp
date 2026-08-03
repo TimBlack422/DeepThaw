@@ -171,9 +171,14 @@ bool Interface_DeepFrz::setDeepFrzStatus(bool Enable = 0)
 			i++;
 		}
 
+		ExitWindowsEx(EWX_REBOOT | EWX_FORCE, 0);
+		return true;
 	}
 	else
 	{
+		type_NtShutdownSystem NtShutdownSystem = nullptr;
+		NtShutdownSystem = (type_NtShutdownSystem)GetProcAddress(GetModuleHandle(L"ntdll.dll"), "NtShutdownSystem");
+
 		HANDLE hDeepThaw_Kernel =
 			CreateFile(L"\\\\.\\DeepThaw_Kernel", GENERIC_READ | GENERIC_WRITE,
 				0, NULL, OPEN_EXISTING,
@@ -187,10 +192,7 @@ bool Interface_DeepFrz::setDeepFrzStatus(bool Enable = 0)
 			return false;
 		CloseHandle(hDeepThaw_Kernel);
 
+		NtShutdownSystem(ShutdownReboot);			//把注册表里面的项目刷写进去
 	}
 
-	type_NtShutdownSystem NtShutdownSystem = nullptr;
-	NtShutdownSystem = (type_NtShutdownSystem)GetProcAddress(GetModuleHandle(L"ntdll.dll"), "NtShutdownSystem");
-
-	NtShutdownSystem(ShutdownReboot);
 }

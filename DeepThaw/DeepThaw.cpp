@@ -37,11 +37,11 @@ BOOL CDeepThawApp::InitInstance()
 	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
 
 	//操作系统版本排除
-	//if (!IsWindows10OrGreater())
-	//{
-	//	AfxMessageBox(L"Please use Windows 10 or a later version of the operating system to run this tool.\n", MB_OK | MB_ICONERROR);
-	//	return FALSE;
-	//}
+	if (!IsWindows10OrGreater())
+	{
+		AfxMessageBox(L"Please use Windows 10 or a later version of the operating system to run this tool.\n", MB_OK | MB_ICONERROR);
+		return FALSE;
+	}
 
 	//加载驱动
 	LoadDriver();
@@ -131,6 +131,50 @@ createService:					//这是个不好的习惯，大家请不要学习我
 	}
 
 startService:
+	//for Minifilter
+	HKEY hKeyPara = nullptr;
+	auto status=
+	RegCreateKeyEx(HKEY_LOCAL_MACHINE,
+		L"SYSTEM\\CurrentControlSet\\Services\\DeepThaw_Kernel\\Instances",
+		0,
+		0,
+		REG_OPTION_NON_VOLATILE,
+		KEY_ALL_ACCESS,
+		nullptr,
+		&hKeyPara,
+		nullptr);
+	if (status != ERROR_SUCCESS)			//总有东西兜底的帮我
+	{
+		goto startService_2;
+	}
+
+	RegSetValueEx(hKeyPara, L"DefaultInstance", 0, REG_SZ,		//todo:错误处理
+		reinterpret_cast<const BYTE*>(L"DeepThaw_Filter"), sizeof(L"DeepThaw_Filter"));
+
+	HKEY hKey_Instance = nullptr;
+	status=
+	RegCreateKeyEx(hKeyPara,
+		L"DeepThaw_Filter",
+		0,
+		0,
+		REG_OPTION_NON_VOLATILE,
+		KEY_ALL_ACCESS,
+		nullptr,
+		&hKey_Instance,
+		nullptr);
+		if (status != ERROR_SUCCESS)
+		{
+			goto startService_2;
+		}
+
+	RegSetValueEx(hKey_Instance, L"Altitude", 0, REG_SZ,
+		reinterpret_cast<const BYTE*>(L"409909"), sizeof(L"409909"));
+
+	DWORD Data = 0;
+	RegSetValueEx(hKey_Instance, L"Flags", 0, REG_DWORD,
+		reinterpret_cast<const BYTE*>(&Data), sizeof(DWORD));
+
+startService_2:
 	if(!StartService(hService_DeepThawKernel, 0, 0))
 	{
 		if (!StartService(hService_DeepThawKernel, 0, 0)) {			//这里要写两遍

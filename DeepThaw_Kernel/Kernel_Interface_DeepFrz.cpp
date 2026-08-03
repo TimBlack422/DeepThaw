@@ -1,5 +1,6 @@
 #include "Kernel_Interface_DeepFrz.h"
 #include "Tools.h"
+#include "FSD_Hook.h"
 
 extern PDEVICE_OBJECT pMainDevobj;
 
@@ -110,8 +111,55 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
 	//针对进程的IO封锁开始
 	pProceess_UnBlockIO = PsGetCurrentProcess();
 	KeClearEvent(&event_BlockIO[1]);
-	
+	fsd_hook::StartIoBlock();				//针对文件的io封锁
 
+	//注册表修改开始
+	LPWSTR registerPath_Classes[] =
+	{
+		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{71a27cdd-812a-11d0-bec7-08002be2092f}" ,
+		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4D36E967-E325-11CE-BFC1-08002BE10318}",
+		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4D36E96B-E325-11CE-BFC1-08002BE10318}",
+		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4d36e96f-e325-11ce-bfc1-08002be10318}"
+	};
+
+	//其UpperFilters要被修改为的值
+	LPWSTR Values[] =
+	{
+		L"volsnap\0",
+		L"partmgr\0",			//这个还要修改LowerFilters为EhStorClass
+		L"kbdclass\0",
+		L"mouclass\0"
+	};
+
+	LPWSTR registerPath_Services[] =
+	{
+	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DeepFrz",
+	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\FarDisk",
+	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\FarSpace",
+	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DFRegMon",
+	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DfDiskLo",
+	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DFServ"
+	};
+
+
+	for (int i = 0; i < 4; i++)
+	{
+		RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, registerPath_Classes[i],
+			L"UpperFilters", REG_MULTI_SZ, Values[i], sizeof(WCHAR) * wcslen(Values[i]) + sizeof(WCHAR) * 2);
+
+		if (i == 1)
+			RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, registerPath_Classes[i],
+				L"LowerFilters", REG_MULTI_SZ, L"EhStorClass\0", sizeof(WCHAR) * wcslen(L"EhStorClass") + sizeof(WCHAR) * 2);
+	}
+
+	for (auto Path : registerPath_Services)
+	{
+		DWORD32 ValueDate = 3;
+		RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, Path,
+			L"Start", REG_DWORD, &ValueDate, sizeof(ValueDate));
+	}
+
+	//hook deepfrz的dispatcher
 	for (auto i = IRP_MJ_CREATE; i < IRP_MJ_MAXIMUM_FUNCTION; i++)
 	{
 		OriginalDeepFrzDispatchers[i]=(PDRIVER_DISPATCH)
@@ -129,56 +177,14 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
 					(LONG64)MyHookDispatcher_FarSpace);
 		}
 	}
-	//Io封锁解除。
+	//Io进程封锁解除永不解除
 	KeSetEvent(&event_BlockIO[0], 1, FALSE);
-
-	//注册表修改
-	LPWSTR registerPath_Classes[] = 
-	{ 
-		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{71a27cdd-812a-11d0-bec7-08002be2092f}" ,
-		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4D36E967-E325-11CE-BFC1-08002BE10318}",
-		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4D36E96B-E325-11CE-BFC1-08002BE10318}",
-		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4d36e96f-e325-11ce-bfc1-08002be10318}"
-	};
-
-	//其UpperFilters要被修改为的值
-	LPWSTR Values[] =
-	{
-		L"volsnap\0",
-		L"partmgr\0",			//这个还要修改LowerFilters为EhStorClass
-		L"kbdclass\0",
-		L"mouclass\0"
-	};
-
-	LPWSTR registerPath_Services[] = 
-	{
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DeepFrz",		
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\FarDisk",		
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\FarSpace",		
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DFRegMon",		
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DfDiskLo",		
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DFServ"			
-	};
-
-
-	for (int i = 0; i < 4; i++)
-	{
-		RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, registerPath_Classes[i],
-			L"UpperFilters", REG_MULTI_SZ, Values[i], sizeof(WCHAR) * wcslen(Values[i]) + sizeof(WCHAR) * 2);
-
-		if (i == 1)
-		RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, registerPath_Classes[i],
-			L"LowerFilters", REG_MULTI_SZ, L"EhStorClass\0", sizeof(WCHAR) * wcslen(L"EhStorClass") + sizeof(WCHAR) * 2);
-	}
-
-	for (auto Path : registerPath_Services)
-	{
-		DWORD32 ValueDate = 3;
-		RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, Path,
-			L"Start", REG_DWORD, &ValueDate, sizeof(ValueDate));
-	}
 	
-	return true;		//	其实完全可以写void，因为是在正在关机时候执行
+											//把内存里面的注册表刷写进去
+	//DbgBreakPoint();
+	//NtShutdownSystem(ShutdownReboot);		交给用户模式吧
+
+	return true;		//	其实完全可以写void，因为后面都要重启的
 }
 
 bool Kernel_Interface_DeepFrz::DisableDeepFrzOnSystemShutdown()
@@ -217,7 +223,7 @@ NTSTATUS MyHookDispatcher_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 
 		KdPrint(("Filter OK! 1 LowerDevobj: %p\n",LowerDevObj));
 
-		if (MajorFuncCode == IRP_MJ_FLUSH_BUFFERS || MajorFuncCode == IRP_MJ_WRITE)
+		if ((MajorFuncCode == IRP_MJ_FLUSH_BUFFERS || MajorFuncCode == IRP_MJ_WRITE) && (ExGetPreviousMode() == KernelMode))
 		{
 			IoSkipCurrentIrpStackLocation(Irp);
 			return IoCallDriver(LowerDevObj, Irp);

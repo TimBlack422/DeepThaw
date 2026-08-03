@@ -3,20 +3,11 @@
 
 //Interface的头文件以后还会拓展的
 #include "Kernel_Interface_DeepFrz.h"
+#include "Kernel_Interface_RrRx.h"
 
+#include "FSD_Hook.h"
 #include "DriverControlCode.h"
 
-typedef enum _FIRMWARE_REENTRY
-{
-	HalHaltRoutine,
-	HalPowerDownRoutine,
-	HalRestartRoutine,
-	HalRebootRoutine,
-	HalInteractiveModeRoutine,
-	HalMaximumRoutine
-}FIRMWARE_REENTRY, * PFIRMWARE_REENTRY;
-extern "C"
-NTKERNELAPI void HalReturnToFirmware(IN FIRMWARE_REENTRY FirmwareReentry);
 
 //用来通信的devobj
 PDEVICE_OBJECT pMainDevobj = nullptr;
@@ -83,13 +74,13 @@ NTSTATUS __stdcall DriverEntry
 	for (auto& event : event_BlockIO)
 		KeInitializeEvent(&event, NotificationEvent, TRUE);
 
-	return STATUS_SUCCESS;
+	return fsd_hook::InitializeFSD_Hook(pDriver_Object, true);;
 }
 
 
 void DriverUnload(PDRIVER_OBJECT pDrvObj)
 {
-	UNREFERENCED_PARAMETER(pDrvObj);
+	fsd_hook::InitializeFSD_Hook(pDrvObj, false);
 
 	UNICODE_STRING name_SymbolicLink{ 0 };
 	RtlInitUnicodeString(&name_SymbolicLink, L"\\DosDevices\\DeepThaw_Kernel");
@@ -127,9 +118,6 @@ NTSTATUS DeviceIoControlDispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 	case IOCTL_DISABLE_DEEPFRZ:
 		status = Kernel_Interface_DeepFrz::DisableDeepFrz(Irp);
 		break;
-	case IOCTL_REBOOT_SYSTEM:
-		HalReturnToFirmware(HalRebootRoutine);
-		break;
 	default:
 		Irp->IoStatus.Status = STATUS_INVALID_PARAMETER;
 		Irp->IoStatus.Information = 0;
@@ -159,7 +147,7 @@ NTSTATUS ShutdownNotificationDispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 
 NTSTATUS IoBlock_Dispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 {
-	if (pDeviceObject == pMainDevobj)		//这个一定要写，不然会bsod
+	if (pDeviceObject == pMainDevobj)		//这个一定要写，就像ntoskrnl处理未irp一样，不然会bsod
 	{
 		Irp->IoStatus.Status = STATUS_SUCCESS;
 		Irp->IoStatus.Information = 0;
@@ -179,8 +167,7 @@ NTSTATUS IoBlock_Dispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 			KeWaitForSingleObject(&event_BlockIO[1], Executive, KernelMode, FALSE, nullptr);
 
 		IoSkipCurrentIrpStackLocation(Irp);
-		return IoCallDriver((PDEVICE_OBJECT)pDeviceObject->DeviceExtension, Irp);
+		return IoCallDriver(reinterpret_cast<PDEVICE_OBJECT>(pDeviceObject->DeviceExtension), Irp);
 	}
-
 
 }
