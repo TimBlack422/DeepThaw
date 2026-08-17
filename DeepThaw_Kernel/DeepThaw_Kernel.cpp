@@ -118,6 +118,9 @@ NTSTATUS DeviceIoControlDispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 	case IOCTL_DISABLE_DEEPFRZ:
 		status = Kernel_Interface_DeepFrz::DisableDeepFrz(Irp);
 		break;
+	case IOCTL_DISABLE_DEEPFRZ_NORMAL:
+		status = Kernel_Interface_DeepFrz::DisableDeepFrzStatusNormal(Irp);		//函数已经在内部完成IRP了
+		return status ? STATUS_SUCCESS : STATUS_INTERNAL_ERROR;	
 	default:
 		Irp->IoStatus.Status = STATUS_INVALID_PARAMETER;
 		Irp->IoStatus.Information = 0;

@@ -43,3 +43,36 @@ extern "C"
 NTSTATUS __stdcall NtShutdownSystem(SHUTDOWN_ACTION Action);
 
 void	(__stdcall  NtMyRebootSystem)();
+
+//from winnt.h
+#ifdef _WIN64
+typedef struct _IMAGE_THUNK_DATA64 {
+	union {
+		ULONGLONG ForwarderString;  // PBYTE 
+		ULONGLONG Function;         // PDWORD
+		ULONGLONG Ordinal;
+		ULONGLONG AddressOfData;    // PIMAGE_IMPORT_BY_NAME
+	} u1;
+} IMAGE_THUNK_DATA64;
+typedef IMAGE_THUNK_DATA64* PIMAGE_THUNK_DATA64;
+
+typedef IMAGE_THUNK_DATA64              IMAGE_THUNK_DATA;
+typedef PIMAGE_THUNK_DATA64             PIMAGE_THUNK_DATA;
+
+#else
+//@[comment("MVI_tracked")]
+typedef struct _IMAGE_THUNK_DATA32 {
+	union {
+		DWORD32 ForwarderString;      // PBYTE 
+		DWORD32 Function;             // PDWORD
+		DWORD32 Ordinal;
+		DWORD32 AddressOfData;        // PIMAGE_IMPORT_BY_NAME
+	} u1;
+} IMAGE_THUNK_DATA32;
+typedef IMAGE_THUNK_DATA32* PIMAGE_THUNK_DATA32;
+
+typedef IMAGE_THUNK_DATA32              IMAGE_THUNK_DATA;
+typedef PIMAGE_THUNK_DATA32             PIMAGE_THUNK_DATA;
+#endif
+
+typedef CHAR BYTE, * PBYTE;

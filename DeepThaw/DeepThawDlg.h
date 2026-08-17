@@ -20,8 +20,11 @@ public:
 
 private:
 	HICON m_hIcon;
+
+	CButton* m_pButtonForceMode = nullptr;
 	CButton * m_pButtonSetting = nullptr,
 		* m_pButtonDelete = nullptr;
+
 	CEdit * m_pEdit = nullptr;
 
 	std::wstring m_Edit_Content;
@@ -35,6 +38,7 @@ protected:
 
 	afx_msg void OnButtonSetting();		
 	afx_msg void OnButtonDelete();
+	afx_msg void OnForceModeCheck();
 	afx_msg BOOL OnQueryEndSession();
 
 	afx_msg void OnPaint();

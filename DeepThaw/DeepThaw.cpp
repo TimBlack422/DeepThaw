@@ -87,17 +87,17 @@ void LoadDriver()
 	if (GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST)
 	{
 createService:					//这是个不好的习惯，大家请不要学习我
-		std::wstring driverPath;
-		WCHAR currentDirectory[MAX_PATH]{ 0 };  
-		if (!GetCurrentDirectory(MAX_PATH, currentDirectory))
-		{
-			AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);
-			ExitProcess(0);
-		}
+	std::wstring driverPath;
+	WCHAR currentDirectory[MAX_PATH]{ 0 };
+	if (!GetCurrentDirectory(MAX_PATH, currentDirectory))
+	{
+		AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\nOr you can try opening this tool again. \n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);
+		ExitProcess(0);
+	}
 
-		driverPath += L"\\??\\";
-		driverPath += currentDirectory;
-		driverPath += L"\\DeepThaw_Kernel.sys";
+	driverPath += L"\\??\\";
+	driverPath += currentDirectory;
+	driverPath += L"\\DeepThaw_Kernel.sys";
 
 		hService_DeepThawKernel =
 			CreateService(hSCManager,
@@ -113,7 +113,7 @@ createService:					//这是个不好的习惯，大家请不要学习我
 				nullptr,
 				nullptr,
 				nullptr
-				);
+			);
 		if(!hService_DeepThawKernel)
 		{
 			AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);

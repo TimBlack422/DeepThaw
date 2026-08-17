@@ -28,6 +28,9 @@
     <Filter Include="源文件\Reboot Restart Rx">
       <UniqueIdentifier>{ef9969a8-1b0f-4d95-bd09-7c3ef5aa4a88}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\manifest">
+      <UniqueIdentifier>{1a0a956f-9ac1-4a58-b9e9-dd39164b0695}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DeepThaw.h">
@@ -48,6 +51,9 @@
     <ClInclude Include="..\DeepThaw_Kernel\DriverControlCode.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="tools.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DeepThaw.cpp">
@@ -58,6 +64,9 @@
     </ClCompile>
     <ClCompile Include="Interface_DeepFrz.cpp">
       <Filter>源文件\DeepFrz</Filter>
+    </ClCompile>
+    <ClCompile Include="tools.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -77,7 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <Xml Include="DeepThaw.exe.manifest">
-      <Filter>源文件</Filter>
+      <Filter>源文件\manifest</Filter>
     </Xml>
   </ItemGroup>
 </Project>

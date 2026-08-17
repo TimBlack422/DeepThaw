@@ -30,6 +30,8 @@
                   - app does not need to manipulate windows belonging to
                     higher-integrity-level processes
                   -->
+				<requestedExecutionLevel
+		uiAccess="false" />
 			</requestedPrivileges>
 		</security>
 	</trustInfo>

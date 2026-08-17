@@ -150,7 +150,11 @@
     <ClInclude Include="FSD_Hook.h" />
     <ClInclude Include="Kernel_Interface_DeepFrz.h" />
     <ClInclude Include="Kernel_Interface_RrRx.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Tools.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="DeepThaw_Kernel.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

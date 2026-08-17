@@ -1,6 +1,7 @@
 #include "Kernel_Interface_DeepFrz.h"
 #include "Tools.h"
 #include "FSD_Hook.h"
+#include <intrin.h>
 
 extern PDEVICE_OBJECT pMainDevobj;
 
@@ -265,3 +266,101 @@ NTSTATUS MyHookDispatcher_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 	}
 
 }
+
+//用来挂钩的函数
+static void Hook_ExSystemTimeToLocalTime(PLARGE_INTEGER, PLARGE_INTEGER);
+
+bool Kernel_Interface_DeepFrz::DisableDeepFrzStatusNormal(IRP* Irp)
+{
+	auto IrpStack = IoGetCurrentIrpStackLocation(Irp);
+	
+	DWORD32 RVA_IAT = *reinterpret_cast<DWORD32*>
+	(Irp->AssociatedIrp.SystemBuffer);
+
+	UNICODE_STRING Name_ExSystemTimeToLocalTime{ 0 };
+	RtlInitUnicodeString(&Name_ExSystemTimeToLocalTime, L"ExSystemTimeToLocalTime");
+	auto pExSystemTimeToLocalTime = MmGetSystemRoutineAddress(&Name_ExSystemTimeToLocalTime);
+	if(pExSystemTimeToLocalTime == nullptr)
+	{
+		Irp->IoStatus.Status = STATUS_INTERNAL_ERROR;
+		Irp->IoStatus.Information = 0;
+
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+		return false;
+	}
+
+	PDRIVER_OBJECT pDeepFrzObj = nullptr;
+	ReferenceDriverObjectByName(L"\\Driver\\DeepFrz", &pDeepFrzObj);
+	if(pDeepFrzObj == nullptr)
+	{
+		Irp->IoStatus.Status = STATUS_NOT_FOUND;
+		Irp->IoStatus.Information = 0;
+
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+		return false;
+	}
+
+	auto DriverStart = pDeepFrzObj->DriverStart;
+	//先把iat对应的槽的地址算出来
+	PIMAGE_THUNK_DATA pThunk = PIMAGE_THUNK_DATA
+		(((ULONGLONG)DriverStart) + RVA_IAT);
+	for (;pThunk->u1.Function != (ULONGLONG)nullptr; pThunk++)			//200%成功的我就不做错误处理了,iat也没有个数标记限制...
+	{
+		if (pThunk->u1.Function == (ULONGLONG)pExSystemTimeToLocalTime)
+			break;
+	}
+
+	//pThunk->u1.Function = (ULONGLONG)nullptr;
+	PIMAGE_THUNK_DATA addrCanBeWritten = (PIMAGE_THUNK_DATA)
+		MmMapIoSpace(MmGetPhysicalAddress(pThunk), sizeof(pThunk->u1.Function), MmNonCached);
+	if(addrCanBeWritten == nullptr)
+	{
+		Irp->IoStatus.Status = STATUS_INTERNAL_ERROR;
+		Irp->IoStatus.Information = 0;
+
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+		return false;
+	}
+	addrCanBeWritten->u1.Function = (ULONGLONG)Hook_ExSystemTimeToLocalTime;		//todo:这个要变成我们获取函数的函数
+
+	ObDereferenceObject(pDeepFrzObj);
+	MmUnmapIoSpace(addrCanBeWritten, sizeof(pThunk->u1.Function));
+
+	Irp->IoStatus.Status = STATUS_SUCCESS;
+	Irp->IoStatus.Information = 0;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
+	return true;
+
+}
+
+static void Hook_ExSystemTimeToLocalTime(PLARGE_INTEGER, PLARGE_INTEGER) 
+{
+	auto AddressOfReturnAddress =
+		_AddressOfReturnAddress();
+
+	//执行次数		绝大多数deepfrz 一般次数为1
+	static int Times = 0;
+	Times++;
+
+	USHORT FrameNum = 0;
+
+	PVOID* Frames[5]{};
+	FrameNum = RtlCaptureStackBackTrace(1, 5, (PVOID*)Frames, 0);
+
+	//panduan次数后开始修改指令
+	if (Times == 2 || ( (Times > 2) ? (Times% 2 ==0 || Times %3 ==0) : 0))
+	{ 
+		BYTE* originalAddr = (BYTE*)Frames[3] -5;
+
+		BYTE* AddrCanBeWritten = (BYTE*)
+			MmMapIoSpace(MmGetPhysicalAddress(originalAddr), 5, MmNonCached);
+		BYTE Bin[] = {0xB0,0x01,0x90,0x90,0x90 };	//mov al,1
+		for (int i = 0; i < 5; i++)
+			AddrCanBeWritten[i] = Bin[i];			//可能会蓝屏，如果mmmapiospace返回0的话。不过那不是我的问题了..
+		
+		MmUnmapIoSpace(AddrCanBeWritten, 5);
+
+	}
+
+	return;
+};
