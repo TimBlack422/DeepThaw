@@ -3,7 +3,7 @@
 ## Introduction
 This is a small utility that can disable system reboot‑restore software (such as Deep Freeze, Reboot Restore, etc.) even when they are enabled and password‑protected.
   
-Currently it only supports Deep Freeze (all versions) and Windows 10/11 64‑bit operating systems.
+Currently it only supports Deep Freeze (all versions) and Windows 7/8.x/10/11 64‑bit operating systems.
   
 It uses a kernel‑mode driver to counter them, allowing it to bypass the reboot‑restore software regardless of its version.  
   
@@ -18,7 +18,7 @@ Visual Studio 2026 + Windows 11 SDK 10.0.28000.2114 + WDK 28000.1761
 
 ## TO-DO list （No idea when I'll get these TODOs done – I'm pretty lazy, to be honest :）
 1. Improve support for Windows 10 32‑bit.
-2. Add support for Windows 7 (and even Windows XP).
+2. ~Add support for Windows 7 (and even Windows XP).~
 3. Support Reboot Restore RX.
 4. Support Shadow Defender.  
 5. Thoroughly harden 'Force Mode' using EFI.

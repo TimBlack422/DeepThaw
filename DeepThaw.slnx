@@ -1,11 +1,15 @@
 <Solution>
   <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release_Win10Greater" />
+    <BuildType Name="Release_Win7Win8" />
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
   <Project Path="DeepThaw/DeepThaw.vcxproj" />
   <Project Path="DeepThaw_Kernel/DeepThaw_Kernel.vcxproj">
-    <Platform Solution="Release|x86" Project="x64" />
-    <Deploy />
+    <Deploy Solution="*|x64" />
+    <Deploy Solution="Debug|x86" />
+    <Deploy Solution="Release_Win10Greater|x86" />
   </Project>
 </Solution>

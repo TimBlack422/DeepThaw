@@ -37,12 +37,20 @@ BOOL CDeepThawApp::InitInstance()
 	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
 
 	//操作系统版本排除
+#ifdef FOR_WIN10_OrGreater
 	if (!IsWindows10OrGreater())
 	{
 		AfxMessageBox(L"Please use Windows 10 or a later version of the operating system to run this tool.\n", MB_OK | MB_ICONERROR);
 		return FALSE;
 	}
+#else 
+	if (IsWindows10OrGreater())
+	{
+		AfxMessageBox(L"Please use Windows 7 or Windows 8.x to run this tool.\n", MB_OK | MB_ICONERROR);
+		return FALSE;
+	}
 
+#endif
 	//加载驱动
 	LoadDriver();
 
