@@ -37,6 +37,7 @@ BOOL CDeepThawApp::InitInstance()
 	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
 
 	//操作系统版本排除
+#ifndef _DEBUG
 #ifdef FOR_WIN10_OrGreater
 	if (!IsWindows10OrGreater())
 	{
@@ -49,20 +50,25 @@ BOOL CDeepThawApp::InitInstance()
 		AfxMessageBox(L"Please use Windows 7 or Windows 8.x to run this tool.\n", MB_OK | MB_ICONERROR);
 		return FALSE;
 	}
-
 #endif
+#endif 
+
 	//加载驱动
 	LoadDriver();
 
-	//获取SE_SHUTDOWN_NAME特权
+	//获取SE_SHUTDOWN_NAME SE_DEBUG_PRIVILEGE特权
 	HANDLE hToken{ 0 };
 	OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &hToken);	//这里就不检查返回值了，后面有人帮我们检查的
 
-	TOKEN_PRIVILEGES privilegesWantToEnable{ 0 };
-	privilegesWantToEnable.PrivilegeCount = 1;
-	privilegesWantToEnable.Privileges->Attributes = SE_PRIVILEGE_ENABLED;
+	TOKEN_PRIVILEGES privilegesWantToEnables[2]{ 0 };
+
+	TOKEN_PRIVILEGES& privilegesWantToEnable = *privilegesWantToEnables;		//简单地内存分配
+	privilegesWantToEnable.PrivilegeCount = 2;
+	privilegesWantToEnable.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+	privilegesWantToEnable.Privileges[1].Attributes = SE_PRIVILEGE_ENABLED;
 
 	LookupPrivilegeValue(nullptr, SE_SHUTDOWN_NAME, &privilegesWantToEnable.Privileges[0].Luid);
+	LookupPrivilegeValue(nullptr, SE_DEBUG_NAME, &privilegesWantToEnable.Privileges[1].Luid);
 
 	if (!AdjustTokenPrivileges(hToken, false, &privilegesWantToEnable, 0, 0, 0))
 	{

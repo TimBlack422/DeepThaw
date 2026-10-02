@@ -16,9 +16,6 @@
     <Filter Include="头文件\freamwork">
       <UniqueIdentifier>{a7f96ab7-3d55-478e-8584-bff24cf1e6c8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件\DeepFrz">
-      <UniqueIdentifier>{00552935-aa60-44b1-9ae5-07b77791d4b7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="源文件\DeepFrz">
       <UniqueIdentifier>{80f2d2b5-1575-4956-ab50-88d1acbbd970}</UniqueIdentifier>
     </Filter>
@@ -30,6 +27,9 @@
     </Filter>
     <Filter Include="源文件\manifest">
       <UniqueIdentifier>{1a0a956f-9ac1-4a58-b9e9-dd39164b0695}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\DeepFrz">
+      <UniqueIdentifier>{00552935-aa60-44b1-9ae5-07b77791d4b7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -54,6 +54,9 @@
     <ClInclude Include="tools.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Interface_RebootRestoreRx.h">
+      <Filter>头文件\Reboot Restart Rx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DeepThaw.cpp">
@@ -67,6 +70,9 @@
     </ClCompile>
     <ClCompile Include="tools.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface_RebootRestoreRx.cpp">
+      <Filter>源文件\Reboot Restart Rx</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -13,4 +13,6 @@ namespace Interface_DeepFrz
 	bool setDeepFrzStatusNormal(HWND hWnd,bool Enable);
 
 	bool IsItsVersionWorkstation();
+
+	std::wstring GetConsoleContent();
 }

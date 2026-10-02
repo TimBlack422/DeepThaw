@@ -6,8 +6,11 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="DeepThaw/DeepThaw.vcxproj" />
-  <Project Path="DeepThaw_Kernel/DeepThaw_Kernel.vcxproj">
+  <Project Path="DeepThaw/DeepThaw.vcxproj" Id="b3ecc10e-b9f9-4402-776d-b3ec36b970a5" />
+  <Project Path="DeepThaw_ForInjection/DeepThaw_ForInjection.vcxproj" Id="8f1243c9-4d8f-4957-b512-ab26819a86f0">
+    <BuildType Solution="Release_Win7Win8|x86" Project="Release_Win10Greater" />
+  </Project>
+  <Project Path="DeepThaw_Kernel/DeepThaw_Kernel.vcxproj" Id="3b6d909e-5c42-d0eb-d236-f18504a93ccc">
     <Deploy Solution="*|x64" />
     <Deploy Solution="Debug|x86" />
     <Deploy Solution="Release_Win10Greater|x86" />

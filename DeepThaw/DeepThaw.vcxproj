@@ -28,7 +28,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
-    <ProjectGuid>{906B3200-91C2-FAFB-DA99-1AC9057F5BD7}</ProjectGuid>
+    <ProjectGuid>{B3ECC10E-B9F9-4402-776D-B3EC36B970A5}</ProjectGuid>
     <Keyword>MFCProj</Keyword>
     <RootNamespace>DeepThaw</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
@@ -222,6 +222,7 @@
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <ExceptionHandling>false</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -284,6 +285,7 @@
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <ExceptionHandling>false</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -308,6 +310,7 @@
     <ClInclude Include="DeepThawDlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="InterFace_DeepFrz.h" />
+    <ClInclude Include="Interface_RebootRestoreRx.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="tools.h" />
   </ItemGroup>
@@ -315,6 +318,7 @@
     <ClCompile Include="DeepThaw.cpp" />
     <ClCompile Include="DeepThawDlg.cpp" />
     <ClCompile Include="Interface_DeepFrz.cpp" />
+    <ClCompile Include="Interface_RebootRestoreRx.cpp" />
     <ClCompile Include="tools.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -26,10 +26,14 @@ private:
 		* m_pButtonDelete = nullptr;
 
 	CEdit * m_pEdit = nullptr;
+	CComboBox* m_pSelector = nullptr;
 
 	std::wstring m_Edit_Content;
 
 	bool m_DeepFrzStatus = false;
+
+	int SelOfRrrx = -1;				//Rrrx这个选项在程序中的索引
+	int SelOfDeepfrz = -1;			//DeepFrz这个选项在程序中的索引
 
 protected:
 
@@ -40,6 +44,8 @@ protected:
 	afx_msg void OnButtonDelete();
 	afx_msg void OnForceModeCheck();
 	afx_msg BOOL OnQueryEndSession();
+
+	afx_msg void OnCComboBoxSelectorChanged();
 
 	afx_msg void OnPaint();
 	DECLARE_MESSAGE_MAP()

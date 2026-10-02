@@ -39,7 +39,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{949BB395-39D2-CCC5-AAA9-E768508BB2EC}</ProjectGuid>
+    <ProjectGuid>{3B6D909E-5C42-D0EB-D236-F18504A93CCC}</ProjectGuid>
     <TemplateGuid>{dd38f7fc-d7bd-488b-9242-7d8754cde80d}</TemplateGuid>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <MinimumVisualStudioVersion>12.0</MinimumVisualStudioVersion>
@@ -187,7 +187,7 @@
     </DriverSign>
     <ClCompile>
       <TreatWarningAsError>false</TreatWarningAsError>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
     </ClCompile>
     <Link>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
@@ -210,7 +210,6 @@
     <ClInclude Include="DriverControlCode.h" />
     <ClInclude Include="FSD_Hook.h" />
     <ClInclude Include="Kernel_Interface_DeepFrz.h" />
-    <ClInclude Include="Kernel_Interface_RrRx.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Tools.h" />
   </ItemGroup>

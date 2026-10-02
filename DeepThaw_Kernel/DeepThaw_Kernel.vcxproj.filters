@@ -23,12 +23,6 @@
     <Filter Include="Source Files\DeepFrz">
       <UniqueIdentifier>{0269c613-aae7-4ddf-92b0-c7c2e360cb6e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Reboot Restore Rx">
-      <UniqueIdentifier>{bc207740-8f08-4764-b151-71311277f5cd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Reboot Restroe Rx">
-      <UniqueIdentifier>{e6b57fcc-5e4d-4de8-9dc4-858ccd2ead04}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Tools.cpp">
@@ -56,9 +50,6 @@
     </ClInclude>
     <ClInclude Include="FSD_Hook.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Kernel_Interface_RrRx.h">
-      <Filter>Header Files\Reboot Restore Rx</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
