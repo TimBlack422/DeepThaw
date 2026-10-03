@@ -5,7 +5,7 @@ namespace Interface_DeepFrz
 	bool getDeepFrzStatus();
 	bool getDeepFrzVersion(std::wstring & output_version);
 
-	bool setDeepFrzStatus(bool Enable);
+	bool setDeepFrzStatusForce(HWND hWnd, bool Enable);
 	bool deleteDeepFrz();
 
 	//Normal模式

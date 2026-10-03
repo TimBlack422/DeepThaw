@@ -98,7 +98,7 @@ void LoadDriver()
 		ExitProcess(0);
 	}
 	hService_DeepThawKernel = OpenService(hSCManager, L"DeepThaw_Kernel", SERVICE_ALL_ACCESS);
-	if (GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST)
+	if (GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST && hService_DeepThawKernel==nullptr)
 	{
 createService:					//这是个不好的习惯，大家请不要学习我
 	std::wstring driverPath;
@@ -136,13 +136,15 @@ createService:					//这是个不好的习惯，大家请不要学习我
 
 		goto startService;			//大家不要学习我
 	}
-	if (hService_DeepThawKernel)
-	{
-		DeleteService(hService_DeepThawKernel);
-		CloseServiceHandle(hService_DeepThawKernel);
-
-		goto createService;
+	else {
+		SERVICE_STATUS ServiceStatus{ 0 };
+		QueryServiceStatus(hService_DeepThawKernel, &ServiceStatus);
+		
+		if (ServiceStatus.dwCurrentState == SERVICE_RUNNING)
+			return;
 	}
+
+
 
 startService:
 	//for Minifilter

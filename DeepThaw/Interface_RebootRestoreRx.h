@@ -6,7 +6,7 @@ namespace Interface_RebootRestoreRx
 {
 	std::wstring GetConsoleContent();
 
-	bool DisableRebootRestoreRxPasswordVerification();
+	bool DisableRebootRestoreRxPasswordVerification(HWND hParentWnd = nullptr);
 	bool IsPasswordVerificationDisabled();
 
 	bool GetStatus();

@@ -1,6 +1,7 @@
 #include"Interface_RebootRestoreRx.h"
 #include <TlHelp32.h>
 #include <string.h>
+#include <VersionHelpers.h>
 
 static bool IsPasswordVerificationDisabled = false;
 
@@ -81,8 +82,35 @@ std::wstring Interface_RebootRestoreRx::GetConsoleContent()
 	return content;
 }
 
-bool Interface_RebootRestoreRx::DisableRebootRestoreRxPasswordVerification() 
+bool Interface_RebootRestoreRx::DisableRebootRestoreRxPasswordVerification(HWND hParentWnd) 
 {	
+	//版本校验
+	FILE_VERSION_INTERNAL File_Version{ 0 };
+	if(!GetVersion(File_Version))
+		return false;
+	
+	if ((File_Version.Version_1 >= 13 && File_Version.Version_2 > 0 && File_Version.Version_3 >= 0 && File_Version.Version_4 >= 0 && File_Version.typeOfVersion == TypeOfVersion::RebootRestoreRxStandard) ||		//13.0
+		(File_Version.Version_1 >= 13 && File_Version.Version_2 > 0 && File_Version.Version_3 >= 0 && File_Version.Version_4 >= 0 && File_Version.typeOfVersion == TypeOfVersion::RebootRestoreRxEnterprise) ||		//13.0
+		(File_Version.Version_1 >= 12 && File_Version.Version_2 > 9 && File_Version.Version_3 >= 0 && File_Version.Version_4 >= 0 && File_Version.typeOfVersion == TypeOfVersion::RollBackRxPro) ||					//12.9
+		(File_Version.Version_1 >= 12 && File_Version.Version_2 > 7 && File_Version.Version_3 >= 0 && File_Version.Version_4 >= 0 && File_Version.typeOfVersion == TypeOfVersion::RollBackRxServer)					//12.7
+		)
+	{
+		//这里的信息框要报错
+		MessageBox(hParentWnd, L"The version of Reboot Restore Rx(Rollback Rx) on your computer is too new, and we do not support it.\n"
+							   L"Please open an issue on this project's GitHub to report this problem. The author will provide support in their spare time.\n", L"DeepThaw: Error", MB_ICONERROR | MB_OK);
+
+		return false;
+	}
+
+	//操作系统版本校验
+	if(!IsWindows8OrGreater())
+	{
+		MessageBox(hParentWnd, L"Due to operating system limitations, this feature currently only supports Windows 8 and later.\n"
+							   L"If you urgently need to use this feature, you can read the article \"How to Manually Disable Password Verification for Reboot Restore Rx(Rollback Rx)\" on GitHub.\n"
+							   L"Article link: https://github.com/TimBlack422/DeepThaw", L"DeepThaw: Error", MB_OK | MB_ICONERROR);													//这里没写完的
+		return false;
+	}
+
 	//先把ShdServ的句柄抓出来先
 	HANDLE hProcessSnapshot =
 		CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);

@@ -1,3 +1,5 @@
+#define WINDOWS_IGNORE_PACKING_MISMATCH
+
 #include "Kernel_Interface_DeepFrz.h"
 #include "Tools.h"
 #include "FSD_Hook.h"
@@ -8,6 +10,8 @@ extern PDEVICE_OBJECT pMainDevobj;
 extern KEVENT		  event_BlockIO[2];
 extern "C"
 PEPROCESS			  pProceess_UnBlockIO;
+
+KEVENT				  event_BlockIrp{ 0 };			//这个是用来拦截并筛选Irp的
 
 ///////////////////////////////////////////////////////////////////////////
 // ///////////////////////////////////////////////////////////////////////
@@ -28,38 +32,71 @@ NTSTATUS MyHookDispatcher_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp);
 // 接口实现//////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-//这个函数，替换dispatchersOfDeepFrz然后改注册表
-bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
+void* pDeepFrzNonVBSArea = nullptr;
+void* pDeepFrzDeviceIoDispatcherNonVBSArea = nullptr;
+//这个函数，替换dispatchersOfDeepFrz到不受vbs保护的内存区域
+bool Kernel_Interface_DeepFrz::DisableDeepFrzForce(IRP* Irp)
 {
-	PDRIVER_OBJECT pDeepFrzDrvObj = nullptr, pFarSpaceDrvObj = nullptr;
+	PDRIVER_OBJECT pDeepFrzDrvObj = nullptr;
 
 	auto status =
 		ReferenceDriverObjectByName(L"\\Driver\\DeepFrz", &pDeepFrzDrvObj);
 	if (NT_ERROR(status))
-		return status;
-
-	bool isFarSpaceExisted = false;
-	status =
-		ReferenceDriverObjectByName(L"\\Driver\\FarSpace", &pFarSpaceDrvObj);
-	if (!NT_ERROR(status))				//todo：对没有FarSpace的老DeepFreeze的兼容
-		isFarSpaceExisted = true;
-
-	//可以直接卸载的驱动
-
-	LPWSTR UnloadDriver_Name[] =
-	{ 
-	  L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DFRegMon",
-	  L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\FarDisk" 
-	};
-	for (int i = 0; i < 2; i++)
 	{
-		UNICODE_STRING driverServiceName{ 0 };
+		Irp->IoStatus.Status = status;
+		Irp->IoStatus.Information = 0;
 
-		RtlInitUnicodeString(&driverServiceName, UnloadDriver_Name[i]);
-		ZwUnloadDriver(&driverServiceName);
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+		return false;
+	}
+
+	PHYSICAL_ADDRESS lowAddress{ 0 };
+	PHYSICAL_ADDRESS highAddress{ 0 };
+	PHYSICAL_ADDRESS skipBytes{ 0 };
+	lowAddress.QuadPart = 0;
+	highAddress.QuadPart = -1;
+	skipBytes.QuadPart = 0;
+
+	PMDL mdlDeepFrzNonVBSArea =
+		MmAllocatePagesForMdlEx(lowAddress, highAddress, skipBytes, pDeepFrzDrvObj->DriverSize, MmNonCached, MM_ALLOCATE_FULLY_REQUIRED | MM_ALLOCATE_REQUIRE_CONTIGUOUS_CHUNKS);
+	if(mdlDeepFrzNonVBSArea == nullptr)
+	{
+		Irp->IoStatus.Status = STATUS_MEMORY_NOT_ALLOCATED;
+		Irp->IoStatus.Information = 0;
+
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+		return false;
 	}
 	
+
+	pDeepFrzNonVBSArea =
+		MmGetSystemAddressForMdl(mdlDeepFrzNonVBSArea);		//反正会蓝屏的 就不错误检查了
+
+	status = MmProtectMdlSystemAddress(mdlDeepFrzNonVBSArea, PAGE_EXECUTE_READWRITE);
+	if(NT_ERROR(status))
+	{
+		Irp->IoStatus.Status = status;
+		Irp->IoStatus.Information = 0;
+
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+		return false;
+	}
+
+	auto pDeepFrzDriSize = pDeepFrzDrvObj->DriverSize;	//这个东西要自己探测
+	for (auto i = (ULONGLONG)pDeepFrzDrvObj->DriverStart+ pDeepFrzDrvObj->DriverSize; ;i-=PAGE_SIZE)
+	{
+		if (MmIsAddressValid((PVOID)i))
+		{
+			pDeepFrzDriSize = i  - (ULONGLONG)pDeepFrzDrvObj->DriverStart;
+			break;
+		}
+	}
+
+	pDeepFrzDriSize += PAGE_SIZE - 1;
+	RtlCopyMemory(pDeepFrzNonVBSArea, pDeepFrzDrvObj->DriverStart, pDeepFrzDriSize);
 	
+	//todo:把所有的表重定位
+
 	// 驱动DeepFrz挂钩的几个设备classes DiskDrive {4D36E967-E325-11CE-BFC1-08002BE10318}
 	// Volume {71a27cdd-812a-11d0-bec7-08002be2092f}
 	// Keyboard {4D36E96B-E325-11CE-BFC1-08002BE10318}
@@ -82,110 +119,63 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrz(IRP* Irp)
 		KdPrint(("For DeepFrz \n"));
 		FindLowerDevobjByTargetDrvObjAndPDO(pDeepFrzDrvObj, pDrvobj, &DeepFrzFarSpace_LowerDeviceList);
 
-		//FarSpace的搜索
-		//DfDiskLo就不必了，我逆向完发现一般都是直接下传的
-		if (isFarSpaceExisted)
-		{
-			KdPrint(("For FarSpace \n"));
-			FindLowerDevobjByTargetDrvObjAndPDO(pFarSpaceDrvObj, pDrvobj, &DeepFrzFarSpace_LowerDeviceList);
-		}
 
 		for (auto pdo = pDrvobj->DeviceObject; pdo;
 			pdo = pdo->NextDevice)
 		{
-			//顺便为每个PDO创建DevObj来实现Io的封锁		返回值就直接忽略了
-			PDEVICE_OBJECT pAttachedDeviceObject = nullptr;
-			IoCreateDevice(pMainDevobj->DriverObject, 0, nullptr, pdo->DeviceType,
-				0, FALSE, &pAttachedDeviceObject);
-			if (!pAttachedDeviceObject)
-				KeBugCheck(SYSTEM_THREAD_EXCEPTION_NOT_HANDLED);
+			////顺便为每个PDO创建DevObj来实现Io的封锁		返回值就直接忽略了
+			//PDEVICE_OBJECT pAttachedDeviceObject = nullptr;
+			//IoCreateDevice(pMainDevobj->DriverObject, 0, nullptr, pdo->DeviceType,
+			//	0, FALSE, &pAttachedDeviceObject);
+			//if (!pAttachedDeviceObject)
+			//	KeBugCheck(SYSTEM_THREAD_EXCEPTION_NOT_HANDLED);
 
-			pAttachedDeviceObject->DeviceExtension = IoAttachDeviceToDeviceStack(pAttachedDeviceObject, pdo);
-			//这些指针直接丢，不影响的///////////////////
+			//pAttachedDeviceObject->DeviceExtension = IoAttachDeviceToDeviceStack(pAttachedDeviceObject, pdo);
+			////这些指针直接丢，不影响的///////////////////
 		}
 
 		ObDereferenceObject(pDrvobj);
 	}
 
 	//IO封锁开始
-	KeClearEvent(&event_BlockIO[0]);
-	//针对进程的IO封锁开始
+	//KeClearEvent(&event_BlockIO[0]);
+	////针对进程的IO封锁开始
 	pProceess_UnBlockIO = PsGetCurrentProcess();
 	KeClearEvent(&event_BlockIO[1]);
 	fsd_hook::StartIoBlock();				//针对文件的io封锁
 
-	//注册表修改开始
-	LPWSTR registerPath_Classes[] =
-	{
-		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{71a27cdd-812a-11d0-bec7-08002be2092f}" ,
-		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4D36E967-E325-11CE-BFC1-08002BE10318}",
-		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4D36E96B-E325-11CE-BFC1-08002BE10318}",
-		L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\{4d36e96f-e325-11ce-bfc1-08002be10318}"
-	};
+	KIRQL oldIrql{ 0 };
+	KeRaiseIrql(APC_LEVEL, &oldIrql);
 
-	//其UpperFilters要被修改为的值
-	LPWSTR Values[] =
-	{
-		L"volsnap\0",
-		L"partmgr\0",			//这个还要修改LowerFilters为EhStorClass
-		L"kbdclass\0",
-		L"mouclass\0"
-	};
+	//hook deepfrz的dispatcher  为不受vbs保护的区域  这里只挂钩DeviceIoControl
+	//for (auto i = IRP_MJ_CREATE; i < IRP_MJ_MAXIMUM_FUNCTION; i++)
+	//{
+	//	if (pDeepFrzDrvObj->MajorFunction[i]<pDeepFrzDrvObj->DriverStart || 
+	//		(ULONG64)pDeepFrzDrvObj->MajorFunction[i]>((ULONG64)pDeepFrzDrvObj->DriverStart + (ULONG64)pDeepFrzDrvObj->DriverSize))
+	//	{
+	//		continue;
+	//	}							//猛然想到某些地址是完全不会被调用的
+	pDeepFrzDeviceIoDispatcherNonVBSArea = (void*)((ULONGLONG)pDeepFrzNonVBSArea + (ULONGLONG)pDeepFrzDrvObj->MajorFunction[IRP_MJ_DEVICE_CONTROL] - (ULONGLONG)pDeepFrzDrvObj->DriverStart);
 
-	LPWSTR registerPath_Services[] =
-	{
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DeepFrz",
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\FarDisk",
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\FarSpace",
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DFRegMon",
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DfDiskLo",
-	L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DFServ"
-	};
-
-
-	for (int i = 0; i < 4; i++)
-	{
-		RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, registerPath_Classes[i],
-			L"UpperFilters", REG_MULTI_SZ, Values[i], sizeof(WCHAR) * wcslen(Values[i]) + sizeof(WCHAR) * 2);
-
-		if (i == 1)
-			RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, registerPath_Classes[i],
-				L"LowerFilters", REG_MULTI_SZ, L"EhStorClass\0", sizeof(WCHAR) * wcslen(L"EhStorClass") + sizeof(WCHAR) * 2);
-	}
-
-	for (auto Path : registerPath_Services)
-	{
-		DWORD32 ValueDate = 3;
-		RtlWriteRegistryValue(RTL_REGISTRY_ABSOLUTE, Path,
-			L"Start", REG_DWORD, &ValueDate, sizeof(ValueDate));
-	}
-
-	//hook deepfrz的dispatcher
-	for (auto i = IRP_MJ_CREATE; i < IRP_MJ_MAXIMUM_FUNCTION; i++)
-	{
-		OriginalDeepFrzDispatchers[i]=(PDRIVER_DISPATCH)
-		InterlockedExchange64((LONG64*) & pDeepFrzDrvObj->MajorFunction[i],
-			(LONG64)MyHookDispatcher_DeepFrz);
-	}
-	//懒得两个合并循环了
-	//这个是FarSpace
-	if (isFarSpaceExisted) 
-	{
-		for (auto i = IRP_MJ_CREATE; i < IRP_MJ_MAXIMUM_FUNCTION; i++)
-		{
-			OriginalFarSpaceDispatchers[i] = (PDRIVER_DISPATCH)
-				InterlockedExchange64((LONG64*)&pFarSpaceDrvObj->MajorFunction[i],
-					(LONG64)MyHookDispatcher_FarSpace);
-		}
-	}
-	//Io进程封锁解除永不解除
-	KeSetEvent(&event_BlockIO[0], 1, FALSE);
+		OriginalDeepFrzDispatchers[IRP_MJ_DEVICE_CONTROL]=(PDRIVER_DISPATCH)
+		InterlockedExchange64((LONG64*) & pDeepFrzDrvObj->MajorFunction[IRP_MJ_DEVICE_CONTROL],
+			(ULONGLONG)MyHookDispatcher_DeepFrz);	//还是得路由一下
+	//}
 	
-											//把内存里面的注册表刷写进去
-	//DbgBreakPoint();
-	//NtShutdownSystem(ShutdownReboot);		交给用户模式吧
+	pDeepFrzDrvObj->DriverStart = pDeepFrzNonVBSArea;
 
-	return true;		//	其实完全可以写void，因为后面都要重启的
+	KeLowerIrql(oldIrql);
+
+	//Io进程封锁解除
+	fsd_hook::StopIoBlock();
+	KeSetEvent(&event_BlockIO[0], 0, FALSE);
+	KeSetEvent(&event_BlockIO[1], 0, FALSE);
+
+	KeInitializeEvent(&event_BlockIrp, NotificationEvent, TRUE);
+	ObDereferenceObject(pDeepFrzDrvObj);
+	
+	
+	return Kernel_Interface_DeepFrz::DisableDeepFrzStatusNormal(Irp);		//交给你了
 }
 
 bool Kernel_Interface_DeepFrz::DisableDeepFrzOnSystemShutdown()
@@ -202,18 +192,35 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrzOnSystemShutdown()
 ///////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////
 
+//这个是用来筛选Irp的
+NTSTATUS IoCompletionRoutineForIrp(PDEVICE_OBJECT DevObj, PIRP Irp, PVOID Context);
+
+//这个函数会筛选Irp DeviceIoControl包的类型 来防止蓝屏
 NTSTATUS MyHookDispatcher_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 {
 	auto irpStack =
 		IoGetCurrentIrpStackLocation(Irp);
 	
 	auto MajorFuncCode = irpStack->MajorFunction;
+	NTSTATUS status = 0;
 
 	PDEVICE_OBJECT LowerDevObj = nullptr;
 	switch(MajorFuncCode)
 	{
 	case IRP_MJ_READ: //对于IRP_MJ_READ直接传给DeepFrz or FarSpace
 		return OriginalDeepFrzDispatchers[irpStack->MajorFunction](pDeviceObject, Irp);
+	case IRP_MJ_DEVICE_CONTROL:			//现在的状况来看只有这里能执行
+		//注册Io完成例程
+		//IoSetCompletionRoutine(Irp, IoCompletionRoutineForIrp, 0, FALSE, TRUE, FALSE);
+		if(irpStack->Parameters.DeviceIoControl.IoControlCode == 0x72070 || 
+		   irpStack->Parameters.DeviceIoControl.IoControlCode == 0x72094)
+			return ((PDRIVER_DISPATCH)pDeepFrzDeviceIoDispatcherNonVBSArea)(pDeviceObject, Irp);
+		else
+			return OriginalDeepFrzDispatchers[irpStack->MajorFunction](pDeviceObject, Irp);
+
+		//KeResetEvent(&event_BlockIrp);
+		//KeWaitForSingleObject(&event_BlockIrp, Executive, KernelMode, FALSE, NULL);
+
 	default:
 		LookupLowerDevobjByLowerDeviceList(pDeviceObject, DeepFrzFarSpace_LowerDeviceList, &LowerDevObj);
 		if (LowerDevObj == nullptr)
@@ -241,31 +248,14 @@ NTSTATUS MyHookDispatcher_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 	
 }
 
-//这两个函数几乎一样的
-
-NTSTATUS MyHookDispatcher_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
-{
-	auto irpStack =
-		IoGetCurrentIrpStackLocation(Irp);
-
-	auto MajorFuncCode = irpStack->MajorFunction;
-
-	PDEVICE_OBJECT LowerDevObj = nullptr;
-	switch (MajorFuncCode)
-	{
-	case IRP_MJ_READ: //对于IRP_MJ_READ直接传给DeepFrz or FarSpace
-		return OriginalFarSpaceDispatchers[irpStack->MajorFunction](pDeviceObject, Irp);
-	default:
-		LookupLowerDevobjByLowerDeviceList(pDeviceObject, DeepFrzFarSpace_LowerDeviceList, &LowerDevObj);
-		if (LowerDevObj == nullptr)
-			return OriginalFarSpaceDispatchers[irpStack->MajorFunction](pDeviceObject, Irp);
-		
-		KdPrint(("Filter OK! 2 LowerDevobj: %p\n", LowerDevObj));
-		IoSkipCurrentIrpStackLocation(Irp);
-		return IoCallDriver(LowerDevObj, Irp);
-	}
-
-}
+//NTSTATUS IoCompletionRoutineForIrp(PDEVICE_OBJECT DevObj, PIRP Irp, PVOID Context) 
+//{
+//	if (Irp->IoStatus.Status == STATUS_ACCESS_DENIED)
+//	{
+//		return STATUS_MORE_PROCESSING_REQUIRED;
+//	}
+//	return STATUS_CONTINUE_COMPLETION;
+//}
 
 //用来挂钩的函数
 static void Hook_ExSystemTimeToLocalTime(PLARGE_INTEGER, PLARGE_INTEGER);

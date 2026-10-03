@@ -115,9 +115,9 @@ NTSTATUS DeviceIoControlDispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 	bool status = false;
 	switch(irpStack->Parameters.DeviceIoControl.IoControlCode)
 	{
-	case IOCTL_DISABLE_DEEPFRZ:
-		status = Kernel_Interface_DeepFrz::DisableDeepFrz(Irp);
-		break;
+	case IOCTL_DISABLE_DEEPFRZ_FORCE:
+		status = Kernel_Interface_DeepFrz::DisableDeepFrzForce(Irp);
+		return status ? STATUS_SUCCESS : STATUS_INTERNAL_ERROR;
 	case IOCTL_DISABLE_DEEPFRZ_NORMAL:
 		status = Kernel_Interface_DeepFrz::DisableDeepFrzStatusNormal(Irp);		//函数已经在内部完成IRP了
 		return status ? STATUS_SUCCESS : STATUS_INTERNAL_ERROR;	
@@ -143,7 +143,7 @@ NTSTATUS ShutdownNotificationDispatch(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 	if (pDeviceObject != pMainDevobj)
 		return IoBlock_Dispatch(pDeviceObject, Irp);
 
-	Kernel_Interface_DeepFrz::DisableDeepFrz(Irp);
+	Kernel_Interface_DeepFrz::DisableDeepFrzForce(Irp);
 
 	return STATUS_SUCCESS;
 }
