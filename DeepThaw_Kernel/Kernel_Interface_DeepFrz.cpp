@@ -1,9 +1,10 @@
 #define WINDOWS_IGNORE_PACKING_MISMATCH
 
+#include <intrin.h>
+
 #include "Kernel_Interface_DeepFrz.h"
 #include "Tools.h"
 #include "FSD_Hook.h"
-#include <intrin.h>
 
 extern PDEVICE_OBJECT pMainDevobj;
 
@@ -32,149 +33,12 @@ NTSTATUS MyHookDispatcher_FarSpace(DEVICE_OBJECT* pDeviceObject, IRP* Irp);
 // 接口实现//////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-void* pDeepFrzNonVBSArea = nullptr;
-void* pDeepFrzDeviceIoDispatcherNonVBSArea = nullptr;
+bool ForceModeEnabled = nullptr;
+
 //这个函数，替换dispatchersOfDeepFrz到不受vbs保护的内存区域
 bool Kernel_Interface_DeepFrz::DisableDeepFrzForce(IRP* Irp)
 {
-	PDRIVER_OBJECT pDeepFrzDrvObj = nullptr;
-
-	auto status =
-		ReferenceDriverObjectByName(L"\\Driver\\DeepFrz", &pDeepFrzDrvObj);
-	if (NT_ERROR(status))
-	{
-		Irp->IoStatus.Status = status;
-		Irp->IoStatus.Information = 0;
-
-		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-		return false;
-	}
-
-	PHYSICAL_ADDRESS lowAddress{ 0 };
-	PHYSICAL_ADDRESS highAddress{ 0 };
-	PHYSICAL_ADDRESS skipBytes{ 0 };
-	lowAddress.QuadPart = 0;
-	highAddress.QuadPart = -1;
-	skipBytes.QuadPart = 0;
-
-	PMDL mdlDeepFrzNonVBSArea =
-		MmAllocatePagesForMdlEx(lowAddress, highAddress, skipBytes, pDeepFrzDrvObj->DriverSize, MmNonCached, MM_ALLOCATE_FULLY_REQUIRED | MM_ALLOCATE_REQUIRE_CONTIGUOUS_CHUNKS);
-	if(mdlDeepFrzNonVBSArea == nullptr)
-	{
-		Irp->IoStatus.Status = STATUS_MEMORY_NOT_ALLOCATED;
-		Irp->IoStatus.Information = 0;
-
-		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-		return false;
-	}
-	
-
-	pDeepFrzNonVBSArea =
-		MmGetSystemAddressForMdl(mdlDeepFrzNonVBSArea);		//反正会蓝屏的 就不错误检查了
-
-	status = MmProtectMdlSystemAddress(mdlDeepFrzNonVBSArea, PAGE_EXECUTE_READWRITE);
-	if(NT_ERROR(status))
-	{
-		Irp->IoStatus.Status = status;
-		Irp->IoStatus.Information = 0;
-
-		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-		return false;
-	}
-
-	auto pDeepFrzDriSize = pDeepFrzDrvObj->DriverSize;	//这个东西要自己探测
-	for (auto i = (ULONGLONG)pDeepFrzDrvObj->DriverStart+ pDeepFrzDrvObj->DriverSize; ;i-=PAGE_SIZE)
-	{
-		if (MmIsAddressValid((PVOID)i))
-		{
-			pDeepFrzDriSize = i  - (ULONGLONG)pDeepFrzDrvObj->DriverStart;
-			break;
-		}
-	}
-
-	pDeepFrzDriSize += PAGE_SIZE - 1;
-	RtlCopyMemory(pDeepFrzNonVBSArea, pDeepFrzDrvObj->DriverStart, pDeepFrzDriSize);
-	
-	//todo:把所有的表重定位
-
-	// 驱动DeepFrz挂钩的几个设备classes DiskDrive {4D36E967-E325-11CE-BFC1-08002BE10318}
-	// Volume {71a27cdd-812a-11d0-bec7-08002be2092f}
-	// Keyboard {4D36E96B-E325-11CE-BFC1-08002BE10318}
-	// Mouse	{4d36e96f-e325-11ce-bfc1-08002be10318}
-	LPWSTR targetPDO[] =
-	{ 
-	L"\\Driver\\Disk",
-	L"\\Driver\\volmgr"//,
-	//L"\\Driver\\i8042prt"//,
-//	L"\\Driver\\mouhid"
-	};
-	
-	for (auto DriverName : targetPDO)
-	{
-		PDRIVER_OBJECT pDrvobj = nullptr;
-		ReferenceDriverObjectByName(DriverName, &pDrvobj);
-		if (!pDrvobj)
-			continue;
-
-		KdPrint(("For DeepFrz \n"));
-		FindLowerDevobjByTargetDrvObjAndPDO(pDeepFrzDrvObj, pDrvobj, &DeepFrzFarSpace_LowerDeviceList);
-
-
-		for (auto pdo = pDrvobj->DeviceObject; pdo;
-			pdo = pdo->NextDevice)
-		{
-			////顺便为每个PDO创建DevObj来实现Io的封锁		返回值就直接忽略了
-			//PDEVICE_OBJECT pAttachedDeviceObject = nullptr;
-			//IoCreateDevice(pMainDevobj->DriverObject, 0, nullptr, pdo->DeviceType,
-			//	0, FALSE, &pAttachedDeviceObject);
-			//if (!pAttachedDeviceObject)
-			//	KeBugCheck(SYSTEM_THREAD_EXCEPTION_NOT_HANDLED);
-
-			//pAttachedDeviceObject->DeviceExtension = IoAttachDeviceToDeviceStack(pAttachedDeviceObject, pdo);
-			////这些指针直接丢，不影响的///////////////////
-		}
-
-		ObDereferenceObject(pDrvobj);
-	}
-
-	//IO封锁开始
-	//KeClearEvent(&event_BlockIO[0]);
-	////针对进程的IO封锁开始
-	pProceess_UnBlockIO = PsGetCurrentProcess();
-	KeClearEvent(&event_BlockIO[1]);
-	fsd_hook::StartIoBlock();				//针对文件的io封锁
-
-	KIRQL oldIrql{ 0 };
-	KeRaiseIrql(APC_LEVEL, &oldIrql);
-
-	//hook deepfrz的dispatcher  为不受vbs保护的区域  这里只挂钩DeviceIoControl
-	//for (auto i = IRP_MJ_CREATE; i < IRP_MJ_MAXIMUM_FUNCTION; i++)
-	//{
-	//	if (pDeepFrzDrvObj->MajorFunction[i]<pDeepFrzDrvObj->DriverStart || 
-	//		(ULONG64)pDeepFrzDrvObj->MajorFunction[i]>((ULONG64)pDeepFrzDrvObj->DriverStart + (ULONG64)pDeepFrzDrvObj->DriverSize))
-	//	{
-	//		continue;
-	//	}							//猛然想到某些地址是完全不会被调用的
-	pDeepFrzDeviceIoDispatcherNonVBSArea = (void*)((ULONGLONG)pDeepFrzNonVBSArea + (ULONGLONG)pDeepFrzDrvObj->MajorFunction[IRP_MJ_DEVICE_CONTROL] - (ULONGLONG)pDeepFrzDrvObj->DriverStart);
-
-		OriginalDeepFrzDispatchers[IRP_MJ_DEVICE_CONTROL]=(PDRIVER_DISPATCH)
-		InterlockedExchange64((LONG64*) & pDeepFrzDrvObj->MajorFunction[IRP_MJ_DEVICE_CONTROL],
-			(ULONGLONG)MyHookDispatcher_DeepFrz);	//还是得路由一下
-	//}
-	
-	pDeepFrzDrvObj->DriverStart = pDeepFrzNonVBSArea;
-
-	KeLowerIrql(oldIrql);
-
-	//Io进程封锁解除
-	fsd_hook::StopIoBlock();
-	KeSetEvent(&event_BlockIO[0], 0, FALSE);
-	KeSetEvent(&event_BlockIO[1], 0, FALSE);
-
-	KeInitializeEvent(&event_BlockIrp, NotificationEvent, TRUE);
-	ObDereferenceObject(pDeepFrzDrvObj);
-	
-	
+	ForceModeEnabled = true;
 	return Kernel_Interface_DeepFrz::DisableDeepFrzStatusNormal(Irp);		//交给你了
 }
 
@@ -212,9 +76,9 @@ NTSTATUS MyHookDispatcher_DeepFrz(DEVICE_OBJECT* pDeviceObject, IRP* Irp)
 	case IRP_MJ_DEVICE_CONTROL:			//现在的状况来看只有这里能执行
 		//注册Io完成例程
 		//IoSetCompletionRoutine(Irp, IoCompletionRoutineForIrp, 0, FALSE, TRUE, FALSE);
-		if(irpStack->Parameters.DeviceIoControl.IoControlCode == 0x72070 || 
-		   irpStack->Parameters.DeviceIoControl.IoControlCode == 0x72094)
-			return ((PDRIVER_DISPATCH)pDeepFrzDeviceIoDispatcherNonVBSArea)(pDeviceObject, Irp);
+		if (irpStack->Parameters.DeviceIoControl.IoControlCode == 0x72070 ||
+			irpStack->Parameters.DeviceIoControl.IoControlCode == 0x72094)
+			;//return ((PDRIVER_DISPATCH)pDeepFrzDeviceIoDispatcherNonVBSArea)(pDeviceObject, Irp);
 		else
 			return OriginalDeepFrzDispatchers[irpStack->MajorFunction](pDeviceObject, Irp);
 
@@ -311,7 +175,7 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrzStatusNormal(IRP* Irp)
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
 		return false;
 	}
-	addrCanBeWritten->u1.Function = (ULONGLONG)Hook_ExSystemTimeToLocalTime;		//todo:这个要变成我们获取函数的函数
+	addrCanBeWritten->u1.Function = (ULONGLONG)Hook_ExSystemTimeToLocalTime;		//这个变成我们获取函数的函数
 
 	ObDereferenceObject(pDeepFrzObj);
 	MmUnmapIoSpace(addrCanBeWritten, sizeof(pThunk->u1.Function));
@@ -323,7 +187,14 @@ bool Kernel_Interface_DeepFrz::DisableDeepFrzStatusNormal(IRP* Irp)
 
 }
 
-static void Hook_ExSystemTimeToLocalTime(PLARGE_INTEGER, PLARGE_INTEGER) 
+extern "C"
+NTSYSAPI VOID __cdecl RtlRestoreContext(PCONTEXT ContextRecord, _EXCEPTION_RECORD* ExceptionRecode);		//这个函数默认没有声明，但是被导出了。只能这样用了
+
+void ModifyRaxTo1();						//把rax改到1，仅此而已
+void* originalReturnAddress = nullptr;
+
+CONTEXT context{ 0 };
+static void Hook_ExSystemTimeToLocalTime(PLARGE_INTEGER, PLARGE_INTEGER localTime) 
 {
 	auto AddressOfReturnAddress =
 		_AddressOfReturnAddress();
@@ -342,15 +213,45 @@ static void Hook_ExSystemTimeToLocalTime(PLARGE_INTEGER, PLARGE_INTEGER)
 	{ 
 		BYTE* originalAddr = (BYTE*)Frames[3] -5;
 
-		BYTE* AddrCanBeWritten = (BYTE*)
-			MmMapIoSpace(MmGetPhysicalAddress(originalAddr), 5, MmNonCached);
-		BYTE Bin[] = {0xB0,0x01,0x90,0x90,0x90 };	//mov al,1
-		for (int i = 0; i < 5; i++)
-			AddrCanBeWritten[i] = Bin[i];			//可能会蓝屏，如果mmmapiospace返回0的话。不过那不是我的问题了..
-		
-		MmUnmapIoSpace(AddrCanBeWritten, 5);
+		if (ForceModeEnabled == false) {
+			BYTE* AddrCanBeWritten = (BYTE*)
+				MmMapIoSpace(MmGetPhysicalAddress(originalAddr), 5, MmNonCached);
+			BYTE Bin[] = { 0xB0,0x01,0x90,0x90,0x90 };	//mov al,1
+			for (int i = 0; i < 5; i++)
+				AddrCanBeWritten[i] = Bin[i];			//可能会蓝屏，如果mmmapiospace返回0的话。不过那不是我的问题了..
+
+			MmUnmapIoSpace(AddrCanBeWritten, 5);
+		}
+		else
+		{
+			//直接栈回溯
+			//RtlCaptureContext(&context);
+
+			//BYTE* rsp = (BYTE*)context.Rsp;
+			//for (; *(ULONGLONG*)rsp != (ULONGLONG)(Frames[3]); rsp++)
+			//	;
+
+			//originalReturnAddress =(void*) *rsp;
+			DbgBreakPoint();
+			//*rsp = (ULONGLONG)ModifyRaxTo1;
+			localTime->QuadPart = 0x19DB1DED53E8000 + 0x989680LL * 0x7FFFFFFF;
+			
+		}
 
 	}
 
 	return;
 };
+
+void ModifyRaxTo1()
+{
+	RtlZeroMemory(&context, sizeof(CONTEXT));
+	RtlCaptureContext(&context);
+
+	context.Rax = 1;
+	context.Rip = (ULONGLONG)originalReturnAddress;
+
+	RtlRestoreContext(&context, NULL);
+
+
+}

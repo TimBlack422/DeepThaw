@@ -23,6 +23,9 @@
     <Filter Include="Source Files\DeepFrz">
       <UniqueIdentifier>{0269c613-aae7-4ddf-92b0-c7c2e360cb6e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Reboot Restore Rx">
+      <UniqueIdentifier>{1c32d2c5-46fd-47c8-940d-ba0f81695093}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Tools.cpp">
