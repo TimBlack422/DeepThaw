@@ -3,6 +3,37 @@
 #include <string.h>
 #include <VersionHelpers.h>
 
+//为RtlCreateUserProcess写点定义
+
+typedef _Function_class_(USER_THREAD_START_ROUTINE)
+NTSTATUS NTAPI USER_THREAD_START_ROUTINE(
+	_In_ PVOID ThreadParameter
+);
+
+typedef USER_THREAD_START_ROUTINE* PUSER_THREAD_START_ROUTINE;
+
+typedef struct _CLIENT_ID
+{
+	HANDLE UniqueProcess;
+	HANDLE UniqueThread;
+} CLIENT_ID, * PCLIENT_ID;
+
+typedef
+NTSTATUS
+NTAPI
+RtlCreateUserThreadType(
+	_In_ HANDLE ProcessHandle,
+	_In_opt_ PSECURITY_DESCRIPTOR ThreadSecurityDescriptor,
+	_In_ BOOLEAN CreateSuspended,
+	_In_opt_ ULONG ZeroBits,
+	_In_opt_ SIZE_T MaximumStackSize,
+	_In_opt_ SIZE_T CommittedStackSize,
+	_In_ PUSER_THREAD_START_ROUTINE StartAddress,
+	_In_opt_ PVOID Parameter,
+	_Out_opt_ PHANDLE ThreadHandle,
+	_Out_opt_ PCLIENT_ID ClientId
+);
+
 static bool IsPasswordVerificationDisabled = false;
 
 enum class TypeOfVersion
@@ -102,14 +133,6 @@ bool Interface_RebootRestoreRx::DisableRebootRestoreRxPasswordVerification(HWND 
 		return false;
 	}
 
-	//操作系统版本校验
-	if(!IsWindows8OrGreater())
-	{
-		MessageBox(hParentWnd, L"Due to operating system limitations, this feature currently only supports Windows 8 and later.\n"
-							   L"If you urgently need to use this feature, you can read the article \"How to Manually Disable Password Verification for Reboot Restore Rx(Rollback Rx)\" on GitHub.\n"
-							   L"Article link: https://github.com/TimBlack422/DeepThaw", L"DeepThaw: Error", MB_OK | MB_ICONERROR);													//这里没写完的
-		return false;
-	}
 
 	//先把ShdServ的句柄抓出来先
 	HANDLE hProcessSnapshot =
@@ -258,13 +281,38 @@ bool Interface_RebootRestoreRx::DisableRebootRestoreRxPasswordVerification(HWND 
 	 (ULONGLONG)relatedOffestOfKernel32dll + (ULONGLONG)relatedOffestOfLoadLibraryW);
 
 	//接下来注入远程线程就ok了
-	if (!CreateRemoteThread(hProcessShdSrv, NULL, 0, (LPTHREAD_START_ROUTINE)LoadLibraryWInShdServ,
-		addrOfDllPathInShdServ, 0, 0))
+
+	if (IsWindows8OrGreater())	//Win8之后可以用CreateRemoteThread直接注入，就不走弯路了
 	{
-		//VirtualFreeEx(hProcessShdSrv, addrOfDllPathInShdServ, path.size() * 2, MEM_RELEASE);
-		CloseHandle(hProcessShdSrv);
-		CloseHandle(hModuleSnapshot);
-		return false;
+		if (!CreateRemoteThread(hProcessShdSrv, NULL, 0, (LPTHREAD_START_ROUTINE)LoadLibraryWInShdServ,
+			addrOfDllPathInShdServ, 0, 0))
+		{
+			//VirtualFreeEx(hProcessShdSrv, addrOfDllPathInShdServ, path.size() * 2, MEM_RELEASE);
+			CloseHandle(hProcessShdSrv);
+			CloseHandle(hModuleSnapshot);
+			return false;
+		}
+	}
+	else						//Win7就用RtlCreateUserProcess，直接绕过kernel32那些东西的检查
+	{
+		RtlCreateUserThreadType *RtlCreateUserThread = nullptr;
+		RtlCreateUserThread = (RtlCreateUserThreadType*)
+			GetProcAddress(GetModuleHandle(L"ntdll.dll"), "RtlCreateUserThread");
+		if (RtlCreateUserThread == nullptr)
+		{
+			CloseHandle(hProcessShdSrv);
+			CloseHandle(hModuleSnapshot);
+			return false;
+		}
+
+		if (RtlCreateUserThread(hProcessShdSrv, NULL, 0,0,0,0 ,(PUSER_THREAD_START_ROUTINE)LoadLibraryWInShdServ,
+			addrOfDllPathInShdServ, 0, 0)!= 0x0000L)	//==STATUS_SUCCESS
+		{
+			//VirtualFreeEx(hProcessShdSrv, addrOfDllPathInShdServ, path.size() * 2, MEM_RELEASE);
+			CloseHandle(hProcessShdSrv);
+			CloseHandle(hModuleSnapshot);
+			return false;
+		}
 	}
 
 	::IsPasswordVerificationDisabled = true;

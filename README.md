@@ -5,8 +5,9 @@ This is a small utility that can disable system Reboot-To-Restore software (such
   
 Now it can support    
 Deep Freeze Standard            7.73.020.0000-9.0.020.5760    
-Deep Freeze Enterprise          8.32.220.0000-10.20.020.5844    
-Deep Freeze Server series       7.73.xxx.0000-9.0.xxx.5760              (The tool will directly recognize it as Deep Freeze Standard.)    
+Deep Freeze Server Standard     7.73.070.0000-9.0.070.5760              (The tool will directly recognize it as Deep Freeze Standard.)    
+Deep Freeze Enterprise          8.32.220.0000-10.20.220.5844    
+Deep Freeze Server Enterprise   8.32.270.0000-10.20.270.5844              (The tool will directly recognize it as Deep Freeze Enterprise.)    
     
 Reboot Restore Rx Standard\Reboot Restore Rx Enterprise     0.0.0.0-13.0.0.0    
 Rollback Rx Professional                                    0.0.0.0-12.9.0.0    
@@ -41,8 +42,8 @@ Visual Studio 2026 + Windows 11 SDK 10.0.28000.2114 + WDK 28000.1761
 5. ~Thoroughly harden "Force Mode" using EFI.~(There’s no need to do this anymore, since a better method has already been found.)
 6. ~Thoroughly resolve the utility's stability in complex environments by permitting I/O operations only from the Configuration Manager.~(It has already been done.)
 7. ~Harden the stability of programs in complex environments using Intel VT-x and AMD-V technologies(If it is necessary).~(There’s no need to do this anymore, since a better method has already been found.)
-8. Improve Force Mode.
-9. Improve the "Disable Password Verification of Reboot Restore Rx (Rollback Rx)" feature on Windows 7.(It currently only supports Windows 8 and later operating systems.)
+8. ~Improve Force Mode.~
+9. ~Improve the "Disable Password Verification of Reboot Restore Rx (Rollback Rx)" feature on Windows 7.(It currently only supports Windows 8 and later operating systems.)~
 
 ## Some other points
 No matter how Faronics updates in the future—whether by blocking driver loading or by other means—as long as they cannot come up with a method that amounts to “even if you know, there’s nothing you can do about it,” the phasing out of Deep Freeze is ultimately only a matter of time (especially given the current sharp shrinkage of the Deep Freeze market and the growing number of competitors). Conversely, if they could localize products such as Faronics Insight and then sell them in the Chinese market, that would greatly increase Faronics’ revenue.

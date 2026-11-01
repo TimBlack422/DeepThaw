@@ -107,3 +107,21 @@ void __stdcall  NtMyRebootSystem()
 
 	KeWaitForSingleObject(hThreadHandle, Executive, KernelMode, false, nullptr);
 }
+
+NTSTATUS CreateRemoteUserThread(HANDLE hHandle, USER_THREAD_START_ROUTINE StartAddress, PVOID Parameter)
+{
+	//先验证环境，看看会不会被恶意滥用
+	//PDRIVER_OBJECT pDrvObjShdBus = nullptr;
+	//ReferenceDriverObjectByName(L"\\Driver\\Shdbus", &pDrvObjShdBus);
+	//if(pDrvObjShdBus == false)
+	//{
+	//	return STATUS_ACCESS_DENIED;
+	//}
+	//ObDereferenceObject(pDrvObjShdBus);
+	//pDrvObjShdBus = nullptr;
+
+	//auto status =
+	//	RtlCreateUserThread(hHandle, NULL, false, 0, 0, 0, StartAddress, Parameter, nullptr, nullptr);
+
+	return STATUS_SUCCESS;
+}

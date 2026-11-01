@@ -88,24 +88,50 @@ BOOL CDeepThawApp::InitInstance()
 	return FALSE;
 }
 
+
 void LoadDriver()
 {
 	SC_HANDLE hSCManager =
 		OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
 	if(hSCManager == nullptr)
 	{
-		AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);
+		AfxMessageBox(L"Failed to load the Driver!\n"
+			L"Restart your computer and then try opening this tool again.\n\n"
+			L"If it still doesn't work, please disable the Driver Signature Enforcement feature on your computer."
+			, MB_ICONERROR | MB_OK);
 		ExitProcess(0);
 	}
+
 	hService_DeepThawKernel = OpenService(hSCManager, L"DeepThaw_Kernel", SERVICE_ALL_ACCESS);
-	if (GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST && hService_DeepThawKernel==nullptr)
+	if (GetLastError() == ERROR_SUCCESS)
 	{
-createService:					//这是个不好的习惯，大家请不要学习我
+		SERVICE_STATUS ServiceStatus{ 0 };
+		QueryServiceStatus(hService_DeepThawKernel, &ServiceStatus);
+
+		if (ServiceStatus.dwCurrentState == SERVICE_STOPPED)
+		{
+			DeleteService(hService_DeepThawKernel);
+			CloseServiceHandle(hService_DeepThawKernel);
+			hService_DeepThawKernel = nullptr;
+
+			SetLastError(ERROR_SERVICE_DOES_NOT_EXIST);
+		}
+
+
+		if (ServiceStatus.dwCurrentState == SERVICE_RUNNING)
+			return;
+	}
+
+	if ( GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST )
+	{
 	std::wstring driverPath;
 	WCHAR currentDirectory[MAX_PATH]{ 0 };
 	if (!GetCurrentDirectory(MAX_PATH, currentDirectory))
 	{
-		AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\nOr you can try opening this tool again. \n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);
+		AfxMessageBox(L"Failed to load the Driver!\n"
+			L"Restart your computer and then try opening this tool again.\n\n"
+			L"If it still doesn't work, please disable the Driver Signature Enforcement feature on your computer."
+			, MB_ICONERROR | MB_OK); 
 		ExitProcess(0);
 	}
 
@@ -130,23 +156,15 @@ createService:					//这是个不好的习惯，大家请不要学习我
 			);
 		if(!hService_DeepThawKernel)
 		{
-			AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);
+			AfxMessageBox(L"Failed to load the Driver!\n"
+				L"Restart your computer and then try opening this tool again.\n\n"
+				L"If it still doesn't work, please disable the Driver Signature Enforcement feature on your computer."
+				, MB_ICONERROR | MB_OK); 
 			ExitProcess(0);
 		}
 
-		goto startService;			//大家不要学习我
-	}
-	else {
-		SERVICE_STATUS ServiceStatus{ 0 };
-		QueryServiceStatus(hService_DeepThawKernel, &ServiceStatus);
-		
-		if (ServiceStatus.dwCurrentState == SERVICE_RUNNING)
-			return;
 	}
 
-
-
-startService:
 	//for Minifilter
 	HKEY hKeyPara = nullptr;
 	auto status=
@@ -190,13 +208,16 @@ startService:
 	RegSetValueEx(hKey_Instance, L"Flags", 0, REG_DWORD,
 		reinterpret_cast<const BYTE*>(&Data), sizeof(DWORD));
 
-startService_2:
+startService_2:															//不要用goto
 	if(!StartService(hService_DeepThawKernel, 0, 0))
 	{
-		if (!StartService(hService_DeepThawKernel, 0, 0)) {			//这里要写两遍
-			AfxMessageBox(L"Failed to load the Driver!\nRestart your computer and then try opening this tool again.\n\nIf it still doesn't work, please disable the Driver Signature Enforcement feature on your computer.", MB_ICONERROR | MB_OK);
-			ExitProcess(0);
-		}
+
+		AfxMessageBox(L"Failed to load the Driver!\n"
+			L"Restart your computer and then try opening this tool again.\n\n"
+			L"If it still doesn't work, please disable the Driver Signature Enforcement feature on your computer."
+			, MB_ICONERROR | MB_OK); 
+		ExitProcess(0);
+		
 	}
 
 	CloseServiceHandle(hSCManager);

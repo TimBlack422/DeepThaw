@@ -13,3 +13,4 @@ namespace Interface_RebootRestoreRx
 	bool UninstallRebootRestoreRx();
 }
 
+
