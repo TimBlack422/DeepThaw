@@ -16,7 +16,8 @@ Rollback Rx Server                                          0.0.0.0-12.7.0.0
 On Windows 7 64-bit and later systems
 
 ### Legal Disclaimer
-This program is intended for learning and research purposes only. If you intend to use this tool on a real computer, you must have the right to control or manage that computer. The author of this tool shall not be held liable for any losses or consequences caused by its use for illegal purposes.
+This program is intended for learning and research purposes only. If you intend to use this tool on a real computer, you must have the right to control or manage that computer. The author of this tool shall not be held liable for any losses or consequences caused by its use for illegal purposes.This project was developed by unpacking the installer from the start, so there is no issue of accepting the license terms. This project is intended for learning and research purposes only.
+
 
 ### Introduction to Deep Freeze
 https://www.faronics.com/deep-freeze-on-cloud    
